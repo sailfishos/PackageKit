@@ -1,0 +1,534 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>PkUpdateDetail</title>
+<meta name="generator" content="DocBook XSL Stylesheets V1.78.1">
+<link rel="home" href="index.html" title="PackageKit Reference Manual">
+<link rel="up" href="libpackagekit-gobject.html" title="libpackagekit GObjects">
+<link rel="prev" href="PkTransactionPast.html" title="PkTransactionPast">
+<link rel="next" href="libpackagekit-helpers.html" title="libpackagekit glib helpers">
+<meta name="generator" content="GTK-Doc V1.18 (XML mode)">
+<link rel="stylesheet" href="style.css" type="text/css">
+</head>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF">
+<table class="navigation" id="top" width="100%" summary="Navigation header" cellpadding="2" cellspacing="2">
+<tr valign="middle">
+<td><a accesskey="p" href="PkTransactionPast.html"><img src="left.png" width="24" height="24" border="0" alt="Prev"></a></td>
+<td><a accesskey="u" href="libpackagekit-gobject.html"><img src="up.png" width="24" height="24" border="0" alt="Up"></a></td>
+<td><a accesskey="h" href="index.html"><img src="home.png" width="24" height="24" border="0" alt="Home"></a></td>
+<th width="100%" align="center">PackageKit Reference Manual</th>
+<td><a accesskey="n" href="libpackagekit-helpers.html"><img src="right.png" width="24" height="24" border="0" alt="Next"></a></td>
+</tr>
+<tr><td colspan="5" class="shortcuts">
+<a href="#PkUpdateDetail.synopsis" class="shortcut">Top</a>
+                   | 
+                  <a href="#PkUpdateDetail.description" class="shortcut">Description</a>
+                   | 
+                  <a href="#PkUpdateDetail.object-hierarchy" class="shortcut">Object Hierarchy</a>
+                   | 
+                  <a href="#PkUpdateDetail.properties" class="shortcut">Properties</a>
+</td></tr>
+</table>
+<div class="refentry">
+<a name="PkUpdateDetail"></a><div class="titlepage"></div>
+<div class="refnamediv"><table width="100%"><tr>
+<td valign="top">
+<h2><span class="refentrytitle"><a name="PkUpdateDetail.top_of_page"></a>PkUpdateDetail</span></h2>
+<p>PkUpdateDetail — UpdateDetail object</p>
+</td>
+<td valign="top" align="right"></td>
+</tr></table></div>
+<div class="refsynopsisdiv">
+<a name="PkUpdateDetail.synopsis"></a><h2>Synopsis</h2>
+<pre class="synopsis">struct              <a class="link" href="PkUpdateDetail.html#PkUpdateDetail-struct" title="struct PkUpdateDetail">PkUpdateDetail</a>;
+struct              <a class="link" href="PkUpdateDetail.html#PkUpdateDetailClass" title="struct PkUpdateDetailClass">PkUpdateDetailClass</a>;
+<a class="link" href="PkUpdateDetail.html" title="PkUpdateDetail"><span class="returnvalue">PkUpdateDetail</span></a> *    <a class="link" href="PkUpdateDetail.html#pk-update-detail-new" title="pk_update_detail_new ()">pk_update_detail_new</a>                (<em class="parameter"><code><span class="type">void</span></code></em>);
+const <a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#gchar"><span class="returnvalue">gchar</span></a> *       <a class="link" href="PkUpdateDetail.html#pk-update-detail-get-package-id" title="pk_update_detail_get_package_id ()">pk_update_detail_get_package_id</a>     (<em class="parameter"><code><a class="link" href="PkUpdateDetail.html" title="PkUpdateDetail"><span class="type">PkUpdateDetail</span></a> *update_detail</code></em>);
+<a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#gchar"><span class="returnvalue">gchar</span></a> **            <a class="link" href="PkUpdateDetail.html#pk-update-detail-get-updates" title="pk_update_detail_get_updates ()">pk_update_detail_get_updates</a>        (<em class="parameter"><code><a class="link" href="PkUpdateDetail.html" title="PkUpdateDetail"><span class="type">PkUpdateDetail</span></a> *update_detail</code></em>);
+<a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#gchar"><span class="returnvalue">gchar</span></a> **            <a class="link" href="PkUpdateDetail.html#pk-update-detail-get-obsoletes" title="pk_update_detail_get_obsoletes ()">pk_update_detail_get_obsoletes</a>      (<em class="parameter"><code><a class="link" href="PkUpdateDetail.html" title="PkUpdateDetail"><span class="type">PkUpdateDetail</span></a> *update_detail</code></em>);
+<a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#gchar"><span class="returnvalue">gchar</span></a> **            <a class="link" href="PkUpdateDetail.html#pk-update-detail-get-vendor-urls" title="pk_update_detail_get_vendor_urls ()">pk_update_detail_get_vendor_urls</a>    (<em class="parameter"><code><a class="link" href="PkUpdateDetail.html" title="PkUpdateDetail"><span class="type">PkUpdateDetail</span></a> *update_detail</code></em>);
+<a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#gchar"><span class="returnvalue">gchar</span></a> **            <a class="link" href="PkUpdateDetail.html#pk-update-detail-get-bugzilla-urls" title="pk_update_detail_get_bugzilla_urls ()">pk_update_detail_get_bugzilla_urls</a>  (<em class="parameter"><code><a class="link" href="PkUpdateDetail.html" title="PkUpdateDetail"><span class="type">PkUpdateDetail</span></a> *update_detail</code></em>);
+<a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#gchar"><span class="returnvalue">gchar</span></a> **            <a class="link" href="PkUpdateDetail.html#pk-update-detail-get-cve-urls" title="pk_update_detail_get_cve_urls ()">pk_update_detail_get_cve_urls</a>       (<em class="parameter"><code><a class="link" href="PkUpdateDetail.html" title="PkUpdateDetail"><span class="type">PkUpdateDetail</span></a> *update_detail</code></em>);
+<a class="link" href="PackageKit-pk-enum.html#PkRestartEnum"><span class="returnvalue">PkRestartEnum</span></a>       <a class="link" href="PkUpdateDetail.html#pk-update-detail-get-restart" title="pk_update_detail_get_restart ()">pk_update_detail_get_restart</a>        (<em class="parameter"><code><a class="link" href="PkUpdateDetail.html" title="PkUpdateDetail"><span class="type">PkUpdateDetail</span></a> *update_detail</code></em>);
+const <a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#gchar"><span class="returnvalue">gchar</span></a> *       <a class="link" href="PkUpdateDetail.html#pk-update-detail-get-update-text" title="pk_update_detail_get_update_text ()">pk_update_detail_get_update_text</a>    (<em class="parameter"><code><a class="link" href="PkUpdateDetail.html" title="PkUpdateDetail"><span class="type">PkUpdateDetail</span></a> *update_detail</code></em>);
+const <a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#gchar"><span class="returnvalue">gchar</span></a> *       <a class="link" href="PkUpdateDetail.html#pk-update-detail-get-changelog" title="pk_update_detail_get_changelog ()">pk_update_detail_get_changelog</a>      (<em class="parameter"><code><a class="link" href="PkUpdateDetail.html" title="PkUpdateDetail"><span class="type">PkUpdateDetail</span></a> *update_detail</code></em>);
+<a class="link" href="PackageKit-pk-enum.html#PkUpdateStateEnum"><span class="returnvalue">PkUpdateStateEnum</span></a>   <a class="link" href="PkUpdateDetail.html#pk-update-detail-get-state" title="pk_update_detail_get_state ()">pk_update_detail_get_state</a>          (<em class="parameter"><code><a class="link" href="PkUpdateDetail.html" title="PkUpdateDetail"><span class="type">PkUpdateDetail</span></a> *update_detail</code></em>);
+const <a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#gchar"><span class="returnvalue">gchar</span></a> *       <a class="link" href="PkUpdateDetail.html#pk-update-detail-get-issued" title="pk_update_detail_get_issued ()">pk_update_detail_get_issued</a>         (<em class="parameter"><code><a class="link" href="PkUpdateDetail.html" title="PkUpdateDetail"><span class="type">PkUpdateDetail</span></a> *update_detail</code></em>);
+const <a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#gchar"><span class="returnvalue">gchar</span></a> *       <a class="link" href="PkUpdateDetail.html#pk-update-detail-get-updated" title="pk_update_detail_get_updated ()">pk_update_detail_get_updated</a>        (<em class="parameter"><code><a class="link" href="PkUpdateDetail.html" title="PkUpdateDetail"><span class="type">PkUpdateDetail</span></a> *update_detail</code></em>);
+</pre>
+</div>
+<div class="refsect1">
+<a name="PkUpdateDetail.object-hierarchy"></a><h2>Object Hierarchy</h2>
+<pre class="synopsis">
+  <a href="http://library.gnome.org/devel/gobject/unstable/gobject-The-Base-Object-Type.html#GObject">GObject</a>
+   +----PkSource
+         +----PkUpdateDetail
+</pre>
+</div>
+<div class="refsect1">
+<a name="PkUpdateDetail.properties"></a><h2>Properties</h2>
+<pre class="synopsis">
+  "<a class="link" href="PkUpdateDetail.html#PkUpdateDetail--bugzilla-urls" title='The "bugzilla-urls" property'>bugzilla-urls</a>"            <a href="http://library.gnome.org/devel/gobject/unstable/gobject-Boxed-Types.html#GStrv"><span class="type">GStrv</span></a>                 : Read / Write
+  "<a class="link" href="PkUpdateDetail.html#PkUpdateDetail--changelog" title='The "changelog" property'>changelog</a>"                <a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#gchar"><span class="type">gchar</span></a>*                : Read / Write
+  "<a class="link" href="PkUpdateDetail.html#PkUpdateDetail--cve-urls" title='The "cve-urls" property'>cve-urls</a>"                 <a href="http://library.gnome.org/devel/gobject/unstable/gobject-Boxed-Types.html#GStrv"><span class="type">GStrv</span></a>                 : Read / Write
+  "<a class="link" href="PkUpdateDetail.html#PkUpdateDetail--issued" title='The "issued" property'>issued</a>"                   <a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#gchar"><span class="type">gchar</span></a>*                : Read / Write
+  "<a class="link" href="PkUpdateDetail.html#PkUpdateDetail--obsoletes" title='The "obsoletes" property'>obsoletes</a>"                <a href="http://library.gnome.org/devel/gobject/unstable/gobject-Boxed-Types.html#GStrv"><span class="type">GStrv</span></a>                 : Read / Write
+  "<a class="link" href="PkUpdateDetail.html#PkUpdateDetail--package-id" title='The "package-id" property'>package-id</a>"               <a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#gchar"><span class="type">gchar</span></a>*                : Read / Write
+  "<a class="link" href="PkUpdateDetail.html#PkUpdateDetail--restart" title='The "restart" property'>restart</a>"                  <a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#guint"><span class="type">guint</span></a>                 : Read / Write
+  "<a class="link" href="PkUpdateDetail.html#PkUpdateDetail--state" title='The "state" property'>state</a>"                    <a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#guint"><span class="type">guint</span></a>                 : Read / Write
+  "<a class="link" href="PkUpdateDetail.html#PkUpdateDetail--update-text" title='The "update-text" property'>update-text</a>"              <a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#gchar"><span class="type">gchar</span></a>*                : Read / Write
+  "<a class="link" href="PkUpdateDetail.html#PkUpdateDetail--updated" title='The "updated" property'>updated</a>"                  <a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#gchar"><span class="type">gchar</span></a>*                : Read / Write
+  "<a class="link" href="PkUpdateDetail.html#PkUpdateDetail--updates" title='The "updates" property'>updates</a>"                  <a href="http://library.gnome.org/devel/gobject/unstable/gobject-Boxed-Types.html#GStrv"><span class="type">GStrv</span></a>                 : Read / Write
+  "<a class="link" href="PkUpdateDetail.html#PkUpdateDetail--vendor-urls" title='The "vendor-urls" property'>vendor-urls</a>"              <a href="http://library.gnome.org/devel/gobject/unstable/gobject-Boxed-Types.html#GStrv"><span class="type">GStrv</span></a>                 : Read / Write
+</pre>
+</div>
+<div class="refsect1">
+<a name="PkUpdateDetail.description"></a><h2>Description</h2>
+<p>
+This GObject represents a update_detail from a transaction.
+These objects represent single items of data from the transaction, and are
+often present in lists (<a class="link" href="PkResults.html" title="PkResults"><span class="type">PkResults</span></a>) or just refcounted in client programs.
+</p>
+</div>
+<div class="refsect1">
+<a name="PkUpdateDetail.details"></a><h2>Details</h2>
+<div class="refsect2">
+<a name="PkUpdateDetail-struct"></a><h3>struct PkUpdateDetail</h3>
+<pre class="programlisting">struct PkUpdateDetail;</pre>
+</div>
+<hr>
+<div class="refsect2">
+<a name="PkUpdateDetailClass"></a><h3>struct PkUpdateDetailClass</h3>
+<pre class="programlisting">struct PkUpdateDetailClass {
+	PkSourceClass parent_class;
+	/* padding for future expansion */
+	void (*_pk_reserved1) (void);
+	void (*_pk_reserved2) (void);
+	void (*_pk_reserved3) (void);
+	void (*_pk_reserved4) (void);
+	void (*_pk_reserved5) (void);
+};
+</pre>
+</div>
+<hr>
+<div class="refsect2">
+<a name="pk-update-detail-new"></a><h3>pk_update_detail_new ()</h3>
+<pre class="programlisting"><a class="link" href="PkUpdateDetail.html" title="PkUpdateDetail"><span class="returnvalue">PkUpdateDetail</span></a> *    pk_update_detail_new                (<em class="parameter"><code><span class="type">void</span></code></em>);</pre>
+<div class="variablelist"><table border="0" class="variablelist">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody><tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span> :</span></p></td>
+<td>a new PkUpdateDetail object.</td>
+</tr></tbody>
+</table></div>
+<p class="since">Since 0.5.4</p>
+</div>
+<hr>
+<div class="refsect2">
+<a name="pk-update-detail-get-package-id"></a><h3>pk_update_detail_get_package_id ()</h3>
+<pre class="programlisting">const <a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#gchar"><span class="returnvalue">gchar</span></a> *       pk_update_detail_get_package_id     (<em class="parameter"><code><a class="link" href="PkUpdateDetail.html" title="PkUpdateDetail"><span class="type">PkUpdateDetail</span></a> *update_detail</code></em>);</pre>
+<p>
+Gets the update detail package ID.
+</p>
+<div class="variablelist"><table border="0" class="variablelist">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>update_detail</code></em> :</span></p></td>
+<td>a <a class="link" href="PkUpdateDetail.html" title="PkUpdateDetail"><span class="type">PkUpdateDetail</span></a> instance</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span> :</span></p></td>
+<td>string values</td>
+</tr>
+</tbody>
+</table></div>
+<p class="since">Since 0.8.8</p>
+</div>
+<hr>
+<div class="refsect2">
+<a name="pk-update-detail-get-updates"></a><h3>pk_update_detail_get_updates ()</h3>
+<pre class="programlisting"><a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#gchar"><span class="returnvalue">gchar</span></a> **            pk_update_detail_get_updates        (<em class="parameter"><code><a class="link" href="PkUpdateDetail.html" title="PkUpdateDetail"><span class="type">PkUpdateDetail</span></a> *update_detail</code></em>);</pre>
+<p>
+Gets the update detail updates IDs.
+</p>
+<div class="variablelist"><table border="0" class="variablelist">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>update_detail</code></em> :</span></p></td>
+<td>a <a class="link" href="PkUpdateDetail.html" title="PkUpdateDetail"><span class="type">PkUpdateDetail</span></a> instance</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span> :</span></p></td>
+<td>string values. <span class="annotation">[<acronym title="Don't free data after the code is done."><span class="acronym">transfer none</span></acronym>]</span>
+</td>
+</tr>
+</tbody>
+</table></div>
+<p class="since">Since 0.8.8</p>
+</div>
+<hr>
+<div class="refsect2">
+<a name="pk-update-detail-get-obsoletes"></a><h3>pk_update_detail_get_obsoletes ()</h3>
+<pre class="programlisting"><a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#gchar"><span class="returnvalue">gchar</span></a> **            pk_update_detail_get_obsoletes      (<em class="parameter"><code><a class="link" href="PkUpdateDetail.html" title="PkUpdateDetail"><span class="type">PkUpdateDetail</span></a> *update_detail</code></em>);</pre>
+<p>
+Gets the update detail obsoletes IDs.
+</p>
+<div class="variablelist"><table border="0" class="variablelist">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>update_detail</code></em> :</span></p></td>
+<td>a <a class="link" href="PkUpdateDetail.html" title="PkUpdateDetail"><span class="type">PkUpdateDetail</span></a> instance</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span> :</span></p></td>
+<td>string values. <span class="annotation">[<acronym title="Don't free data after the code is done."><span class="acronym">transfer none</span></acronym>]</span>
+</td>
+</tr>
+</tbody>
+</table></div>
+<p class="since">Since 0.8.8</p>
+</div>
+<hr>
+<div class="refsect2">
+<a name="pk-update-detail-get-vendor-urls"></a><h3>pk_update_detail_get_vendor_urls ()</h3>
+<pre class="programlisting"><a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#gchar"><span class="returnvalue">gchar</span></a> **            pk_update_detail_get_vendor_urls    (<em class="parameter"><code><a class="link" href="PkUpdateDetail.html" title="PkUpdateDetail"><span class="type">PkUpdateDetail</span></a> *update_detail</code></em>);</pre>
+<p>
+Gets the update detail vendor URLs.
+</p>
+<div class="variablelist"><table border="0" class="variablelist">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>update_detail</code></em> :</span></p></td>
+<td>a <a class="link" href="PkUpdateDetail.html" title="PkUpdateDetail"><span class="type">PkUpdateDetail</span></a> instance</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span> :</span></p></td>
+<td>string values. <span class="annotation">[<acronym title="Don't free data after the code is done."><span class="acronym">transfer none</span></acronym>]</span>
+</td>
+</tr>
+</tbody>
+</table></div>
+<p class="since">Since 0.8.8</p>
+</div>
+<hr>
+<div class="refsect2">
+<a name="pk-update-detail-get-bugzilla-urls"></a><h3>pk_update_detail_get_bugzilla_urls ()</h3>
+<pre class="programlisting"><a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#gchar"><span class="returnvalue">gchar</span></a> **            pk_update_detail_get_bugzilla_urls  (<em class="parameter"><code><a class="link" href="PkUpdateDetail.html" title="PkUpdateDetail"><span class="type">PkUpdateDetail</span></a> *update_detail</code></em>);</pre>
+<p>
+Gets the update detail bugzilla URLs.
+</p>
+<div class="variablelist"><table border="0" class="variablelist">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>update_detail</code></em> :</span></p></td>
+<td>a <a class="link" href="PkUpdateDetail.html" title="PkUpdateDetail"><span class="type">PkUpdateDetail</span></a> instance</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span> :</span></p></td>
+<td>string values. <span class="annotation">[<acronym title="Don't free data after the code is done."><span class="acronym">transfer none</span></acronym>]</span>
+</td>
+</tr>
+</tbody>
+</table></div>
+<p class="since">Since 0.8.8</p>
+</div>
+<hr>
+<div class="refsect2">
+<a name="pk-update-detail-get-cve-urls"></a><h3>pk_update_detail_get_cve_urls ()</h3>
+<pre class="programlisting"><a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#gchar"><span class="returnvalue">gchar</span></a> **            pk_update_detail_get_cve_urls       (<em class="parameter"><code><a class="link" href="PkUpdateDetail.html" title="PkUpdateDetail"><span class="type">PkUpdateDetail</span></a> *update_detail</code></em>);</pre>
+<p>
+Gets the update detail CVE URLs.
+</p>
+<div class="variablelist"><table border="0" class="variablelist">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>update_detail</code></em> :</span></p></td>
+<td>a <a class="link" href="PkUpdateDetail.html" title="PkUpdateDetail"><span class="type">PkUpdateDetail</span></a> instance</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span> :</span></p></td>
+<td>string values. <span class="annotation">[<acronym title="Don't free data after the code is done."><span class="acronym">transfer none</span></acronym>]</span>
+</td>
+</tr>
+</tbody>
+</table></div>
+<p class="since">Since 0.8.8</p>
+</div>
+<hr>
+<div class="refsect2">
+<a name="pk-update-detail-get-restart"></a><h3>pk_update_detail_get_restart ()</h3>
+<pre class="programlisting"><a class="link" href="PackageKit-pk-enum.html#PkRestartEnum"><span class="returnvalue">PkRestartEnum</span></a>       pk_update_detail_get_restart        (<em class="parameter"><code><a class="link" href="PkUpdateDetail.html" title="PkUpdateDetail"><span class="type">PkUpdateDetail</span></a> *update_detail</code></em>);</pre>
+<p>
+Gets the update detail restart kind.
+</p>
+<div class="variablelist"><table border="0" class="variablelist">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>update_detail</code></em> :</span></p></td>
+<td>a <a class="link" href="PkUpdateDetail.html" title="PkUpdateDetail"><span class="type">PkUpdateDetail</span></a> instance</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span> :</span></p></td>
+<td>enum values</td>
+</tr>
+</tbody>
+</table></div>
+<p class="since">Since 0.8.8</p>
+</div>
+<hr>
+<div class="refsect2">
+<a name="pk-update-detail-get-update-text"></a><h3>pk_update_detail_get_update_text ()</h3>
+<pre class="programlisting">const <a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#gchar"><span class="returnvalue">gchar</span></a> *       pk_update_detail_get_update_text    (<em class="parameter"><code><a class="link" href="PkUpdateDetail.html" title="PkUpdateDetail"><span class="type">PkUpdateDetail</span></a> *update_detail</code></em>);</pre>
+<p>
+Gets the update detail update text.
+</p>
+<div class="variablelist"><table border="0" class="variablelist">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>update_detail</code></em> :</span></p></td>
+<td>a <a class="link" href="PkUpdateDetail.html" title="PkUpdateDetail"><span class="type">PkUpdateDetail</span></a> instance</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span> :</span></p></td>
+<td>string values</td>
+</tr>
+</tbody>
+</table></div>
+<p class="since">Since 0.8.8</p>
+</div>
+<hr>
+<div class="refsect2">
+<a name="pk-update-detail-get-changelog"></a><h3>pk_update_detail_get_changelog ()</h3>
+<pre class="programlisting">const <a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#gchar"><span class="returnvalue">gchar</span></a> *       pk_update_detail_get_changelog      (<em class="parameter"><code><a class="link" href="PkUpdateDetail.html" title="PkUpdateDetail"><span class="type">PkUpdateDetail</span></a> *update_detail</code></em>);</pre>
+<p>
+Gets the update detail changelog.
+</p>
+<div class="variablelist"><table border="0" class="variablelist">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>update_detail</code></em> :</span></p></td>
+<td>a <a class="link" href="PkUpdateDetail.html" title="PkUpdateDetail"><span class="type">PkUpdateDetail</span></a> instance</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span> :</span></p></td>
+<td>string values</td>
+</tr>
+</tbody>
+</table></div>
+<p class="since">Since 0.8.8</p>
+</div>
+<hr>
+<div class="refsect2">
+<a name="pk-update-detail-get-state"></a><h3>pk_update_detail_get_state ()</h3>
+<pre class="programlisting"><a class="link" href="PackageKit-pk-enum.html#PkUpdateStateEnum"><span class="returnvalue">PkUpdateStateEnum</span></a>   pk_update_detail_get_state          (<em class="parameter"><code><a class="link" href="PkUpdateDetail.html" title="PkUpdateDetail"><span class="type">PkUpdateDetail</span></a> *update_detail</code></em>);</pre>
+<p>
+Gets the update detail state.
+</p>
+<div class="variablelist"><table border="0" class="variablelist">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>update_detail</code></em> :</span></p></td>
+<td>a <a class="link" href="PkUpdateDetail.html" title="PkUpdateDetail"><span class="type">PkUpdateDetail</span></a> instance</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span> :</span></p></td>
+<td>enum value</td>
+</tr>
+</tbody>
+</table></div>
+<p class="since">Since 0.8.8</p>
+</div>
+<hr>
+<div class="refsect2">
+<a name="pk-update-detail-get-issued"></a><h3>pk_update_detail_get_issued ()</h3>
+<pre class="programlisting">const <a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#gchar"><span class="returnvalue">gchar</span></a> *       pk_update_detail_get_issued         (<em class="parameter"><code><a class="link" href="PkUpdateDetail.html" title="PkUpdateDetail"><span class="type">PkUpdateDetail</span></a> *update_detail</code></em>);</pre>
+<p>
+Gets the update detail issued string.
+</p>
+<div class="variablelist"><table border="0" class="variablelist">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>update_detail</code></em> :</span></p></td>
+<td>a <a class="link" href="PkUpdateDetail.html" title="PkUpdateDetail"><span class="type">PkUpdateDetail</span></a> instance</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span> :</span></p></td>
+<td>string values</td>
+</tr>
+</tbody>
+</table></div>
+<p class="since">Since 0.8.8</p>
+</div>
+<hr>
+<div class="refsect2">
+<a name="pk-update-detail-get-updated"></a><h3>pk_update_detail_get_updated ()</h3>
+<pre class="programlisting">const <a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#gchar"><span class="returnvalue">gchar</span></a> *       pk_update_detail_get_updated        (<em class="parameter"><code><a class="link" href="PkUpdateDetail.html" title="PkUpdateDetail"><span class="type">PkUpdateDetail</span></a> *update_detail</code></em>);</pre>
+<p>
+Gets the update detail updated string.
+</p>
+<div class="variablelist"><table border="0" class="variablelist">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>update_detail</code></em> :</span></p></td>
+<td>a <a class="link" href="PkUpdateDetail.html" title="PkUpdateDetail"><span class="type">PkUpdateDetail</span></a> instance</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span> :</span></p></td>
+<td>string values</td>
+</tr>
+</tbody>
+</table></div>
+<p class="since">Since 0.8.8</p>
+</div>
+</div>
+<div class="refsect1">
+<a name="PkUpdateDetail.property-details"></a><h2>Property Details</h2>
+<div class="refsect2">
+<a name="PkUpdateDetail--bugzilla-urls"></a><h3>The <code class="literal">"bugzilla-urls"</code> property</h3>
+<pre class="programlisting">  "bugzilla-urls"            <a href="http://library.gnome.org/devel/gobject/unstable/gobject-Boxed-Types.html#GStrv"><span class="type">GStrv</span></a>                 : Read / Write</pre>
+<p></p>
+<p class="since">Since 0.8.1</p>
+</div>
+<hr>
+<div class="refsect2">
+<a name="PkUpdateDetail--changelog"></a><h3>The <code class="literal">"changelog"</code> property</h3>
+<pre class="programlisting">  "changelog"                <a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#gchar"><span class="type">gchar</span></a>*                : Read / Write</pre>
+<p></p>
+<p>Default value: NULL</p>
+<p class="since">Since 0.5.4</p>
+</div>
+<hr>
+<div class="refsect2">
+<a name="PkUpdateDetail--cve-urls"></a><h3>The <code class="literal">"cve-urls"</code> property</h3>
+<pre class="programlisting">  "cve-urls"                 <a href="http://library.gnome.org/devel/gobject/unstable/gobject-Boxed-Types.html#GStrv"><span class="type">GStrv</span></a>                 : Read / Write</pre>
+<p></p>
+<p class="since">Since 0.8.1</p>
+</div>
+<hr>
+<div class="refsect2">
+<a name="PkUpdateDetail--issued"></a><h3>The <code class="literal">"issued"</code> property</h3>
+<pre class="programlisting">  "issued"                   <a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#gchar"><span class="type">gchar</span></a>*                : Read / Write</pre>
+<p></p>
+<p>Default value: NULL</p>
+<p class="since">Since 0.5.4</p>
+</div>
+<hr>
+<div class="refsect2">
+<a name="PkUpdateDetail--obsoletes"></a><h3>The <code class="literal">"obsoletes"</code> property</h3>
+<pre class="programlisting">  "obsoletes"                <a href="http://library.gnome.org/devel/gobject/unstable/gobject-Boxed-Types.html#GStrv"><span class="type">GStrv</span></a>                 : Read / Write</pre>
+<p></p>
+<p class="since">Since 0.8.1</p>
+</div>
+<hr>
+<div class="refsect2">
+<a name="PkUpdateDetail--package-id"></a><h3>The <code class="literal">"package-id"</code> property</h3>
+<pre class="programlisting">  "package-id"               <a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#gchar"><span class="type">gchar</span></a>*                : Read / Write</pre>
+<p></p>
+<p>Default value: NULL</p>
+<p class="since">Since 0.5.4</p>
+</div>
+<hr>
+<div class="refsect2">
+<a name="PkUpdateDetail--restart"></a><h3>The <code class="literal">"restart"</code> property</h3>
+<pre class="programlisting">  "restart"                  <a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#guint"><span class="type">guint</span></a>                 : Read / Write</pre>
+<p></p>
+<p>Default value: 0</p>
+<p class="since">Since 0.5.4</p>
+</div>
+<hr>
+<div class="refsect2">
+<a name="PkUpdateDetail--state"></a><h3>The <code class="literal">"state"</code> property</h3>
+<pre class="programlisting">  "state"                    <a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#guint"><span class="type">guint</span></a>                 : Read / Write</pre>
+<p></p>
+<p>Default value: 0</p>
+<p class="since">Since 0.5.4</p>
+</div>
+<hr>
+<div class="refsect2">
+<a name="PkUpdateDetail--update-text"></a><h3>The <code class="literal">"update-text"</code> property</h3>
+<pre class="programlisting">  "update-text"              <a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#gchar"><span class="type">gchar</span></a>*                : Read / Write</pre>
+<p></p>
+<p>Default value: NULL</p>
+<p class="since">Since 0.5.4</p>
+</div>
+<hr>
+<div class="refsect2">
+<a name="PkUpdateDetail--updated"></a><h3>The <code class="literal">"updated"</code> property</h3>
+<pre class="programlisting">  "updated"                  <a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#gchar"><span class="type">gchar</span></a>*                : Read / Write</pre>
+<p></p>
+<p>Default value: NULL</p>
+<p class="since">Since 0.5.4</p>
+</div>
+<hr>
+<div class="refsect2">
+<a name="PkUpdateDetail--updates"></a><h3>The <code class="literal">"updates"</code> property</h3>
+<pre class="programlisting">  "updates"                  <a href="http://library.gnome.org/devel/gobject/unstable/gobject-Boxed-Types.html#GStrv"><span class="type">GStrv</span></a>                 : Read / Write</pre>
+<p></p>
+<p class="since">Since 0.8.1</p>
+</div>
+<hr>
+<div class="refsect2">
+<a name="PkUpdateDetail--vendor-urls"></a><h3>The <code class="literal">"vendor-urls"</code> property</h3>
+<pre class="programlisting">  "vendor-urls"              <a href="http://library.gnome.org/devel/gobject/unstable/gobject-Boxed-Types.html#GStrv"><span class="type">GStrv</span></a>                 : Read / Write</pre>
+<p></p>
+<p class="since">Since 0.8.1</p>
+</div>
+</div>
+</div>
+<div class="footer">
+<hr>
+          Generated by GTK-Doc V1.18</div>
+</body>
+</html>
