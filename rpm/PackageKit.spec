@@ -163,6 +163,7 @@ user to restart the computer or remove and re-insert the device.
 # make sure Makefile.in is newer then the other autoshit droplets
 # because auto* is a fucking big mess and will leave you in knee
 # deep puddle of diarrhea otherwise.
+sleep 1
 find -name Makefile.in -exec touch '{}' \;
 
 export LIBS=-ldbus-glib-1
