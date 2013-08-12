@@ -157,7 +157,7 @@ user to restart the computer or remove and re-insert the device.
 
 
 %prep
-%setup -q -n %{name}-%{version}/%{name}
+%setup -q -n %{name}-%{version}/PackageKit
 
 %build
 # make sure Makefile.in is newer then the other autoshit droplets
