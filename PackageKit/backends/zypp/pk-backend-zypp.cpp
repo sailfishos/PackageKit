@@ -148,6 +148,21 @@ gchar * _repoName;
  */
 gboolean _updating_self = FALSE;
 
+/*
+ * Test if this is pattern and all its dependencies are installed
+ */
+static gboolean
+zypp_satisfied_pattern(const sat::Solvable &solv)
+{
+	gboolean satisfied = FALSE;
+
+	if (isKind<Pattern>(solv)) {
+		PoolItem patt = PoolItem(solv);
+		satisfied = patt.isSatisfied();
+	}
+	return satisfied;
+}
+
 /**
  * Build a package_id from the specified resolvable.  The returned
  * gchar * should be freed with g_free ().
@@ -157,19 +172,24 @@ zypp_build_package_id_from_resolvable (const sat::Solvable &resolvable)
 {
 	gchar *package_id;
 	const char *arch;
-
-	if (isKind<SrcPackage>(resolvable))
-		arch = "source";
-	else
-		arch = resolvable.arch ().asString ().c_str ();
-
+	string name = resolvable.name ();
 	string repo = resolvable.repository ().alias();
-	if (resolvable.isSystem())
-		repo = "installed";
-	package_id = pk_package_id_build (resolvable.name ().c_str (),
+
+	if (isKind<Pattern>(resolvable)) {
+		name = "pattern:" + resolvable.name ();
+		arch = "noarch";
+		if (zypp_satisfied_pattern(resolvable))
+			repo = "installed";
+	} else if (isKind<SrcPackage>(resolvable))
+		arch = "source";
+	else {
+		arch = resolvable.arch ().asString ().c_str ();
+		if (resolvable.isSystem())
+			repo = "installed";
+	}
+	package_id = pk_package_id_build (name.c_str (),
 					  resolvable.edition ().asString ().c_str (),
 					  arch, repo.c_str ());
-	
 	return package_id;
 }
 
@@ -688,7 +708,7 @@ zypp_is_valid_repo (PkBackendJob *job, RepoInfo repo)
  * and ones found in the enabled repositories.
  */
 ResPool
-zypp_build_pool (ZYpp::Ptr zypp, gboolean include_local)
+zypp_build_pool (ZYpp::Ptr zypp, gboolean include_local, gboolean force = FALSE)
 {
 	static gboolean repos_loaded = FALSE;
 
@@ -710,16 +730,16 @@ zypp_build_pool (ZYpp::Ptr zypp, gboolean include_local)
 		}
 	}
 
-	// we only load repositories once.
-	if (repos_loaded)
+	// we only load repositories once unless forced to redo it
+	if (!force && repos_loaded) {
 		return zypp->pool();
+	}
 
 	// Add resolvables from enabled repos
 	RepoManager manager;
 	try {
 		for (RepoManager::RepoConstIterator it = manager.repoBegin(); it != manager.repoEnd(); ++it) {
 			RepoInfo repo (*it);
-
 			// skip disabled repos
 			if (repo.enabled () == false)
 				continue;
@@ -741,6 +761,7 @@ zypp_build_pool (ZYpp::Ptr zypp, gboolean include_local)
 	} catch (const Exception &ex) {
 		g_error ("TODO: Handle exceptions: %s", ex.asUserString ().c_str ());
 	}
+	zypp->resolver ()->resolvePool ();
 
 	return zypp->pool ();
 }
@@ -849,7 +870,20 @@ zypp_get_packages_by_name (const gchar *package_name,
 			   vector<sat::Solvable> &result,
 			   gboolean include_local = TRUE)
 {
-	ui::Selectable::Ptr sel( ui::Selectable::get( kind, package_name ) );
+	const gchar *search_name;
+	// Patterns are stored in zypper without "pattern:" prefix
+	// We want that to be specified when searching patterns
+	if (kind == ResKind::pattern) {
+		if (g_str_has_prefix (package_name, "pattern:"))
+			search_name = package_name + strlen("pattern:");
+		else {
+			return;
+		}
+	}
+	else
+		search_name = package_name;
+
+	ui::Selectable::Ptr sel( ui::Selectable::get( kind, search_name ) );
 	if ( sel ) {
 		if ( ! sel->installedEmpty() ) {
 			for_( it, sel->installedBegin(), sel->installedEnd() )
@@ -861,6 +895,7 @@ zypp_get_packages_by_name (const gchar *package_name,
 		}
 	}
 }
+
 
 /**
  * Returns a list of packages that owns the specified file.
@@ -911,14 +946,22 @@ zypp_get_package_by_id (const gchar *package_id)
 	const gchar *arch = id_parts[PK_PACKAGE_ID_ARCH];
 	if (!arch)
 		arch = "noarch";
+	const gchar *name = id_parts[PK_PACKAGE_ID_NAME];
+	const gchar *search_name;
 	bool want_source = !g_strcmp0 (arch, "source");
-	
+	bool want_pattern = g_str_has_prefix (name, "pattern:");
+	if (want_pattern)
+		search_name = name + strlen("pattern:");  // skipp pattern
+	else
+		search_name = name;
+
+
 	sat::Solvable package;
 
 	ResPool pool = ResPool::instance();
 
 	// Iterate over the resolvables and mark the one we want to check its dependencies
-	for (ResPool::byName_iterator it = pool.byNameBegin (id_parts[PK_PACKAGE_ID_NAME]);
+	for (ResPool::byName_iterator it = pool.byNameBegin (search_name);
 	     it != pool.byNameEnd (id_parts[PK_PACKAGE_ID_NAME]); ++it) {
 		
 		sat::Solvable pkg = it->satSolvable();
@@ -926,6 +969,11 @@ zypp_get_package_by_id (const gchar *package_id)
 
 		if (want_source && !isKind<SrcPackage>(pkg)) {
 			//MIL << "not a src package\n";
+			continue;
+		}
+
+		if (want_pattern && !isKind<Pattern>(pkg)) {
+			//MIL << "not a pattern\n";
 			continue;
 		}
 
@@ -1058,10 +1106,12 @@ zypp_filter_solvable (PkBitfield filters, const sat::Solvable &item)
 	for (guint i = 0; i < PK_FILTER_ENUM_LAST; i++) {
 		if ((filters & pk_bitfield_value (i)) == 0)
 			continue;
-		if (i == PK_FILTER_ENUM_INSTALLED && !(item.isSystem ()))
+		if (i == PK_FILTER_ENUM_INSTALLED && !(item.isSystem () || zypp_satisfied_pattern(item))){
 			return TRUE;
-		if (i == PK_FILTER_ENUM_NOT_INSTALLED && item.isSystem ())
+		}
+		if (i == PK_FILTER_ENUM_NOT_INSTALLED && (item.isSystem () || zypp_satisfied_pattern(item))){
 			return TRUE;
+		}
 		if (i == PK_FILTER_ENUM_ARCH) {
 			if (item.arch () != ZConfig::defaultSystemArchitecture () &&
 			    item.arch () != Arch_noarch &&
@@ -1117,10 +1167,10 @@ zypp_emit_filtered_packages_in_list (PkBackendJob *job, PkBitfield filters, cons
 
 	// always emit system installed packages first
 	for (sat_it_t it = v.begin (); it != v.end (); ++it) {
-		if (!it->isSystem() ||
-		    zypp_filter_solvable (filters, *it))
+		if (!(it->isSystem() || zypp_satisfied_pattern(*it)) ||
+		    zypp_filter_solvable (filters, *it)) {
 			continue;
-
+		}
 		zypp_backend_package (job, PK_INFO_ENUM_INSTALLED, *it,
 				      make<ResObject>(*it)->summary().c_str());
 		installed.push_back (*it);
@@ -1133,6 +1183,7 @@ zypp_emit_filtered_packages_in_list (PkBackendJob *job, PkBitfield filters, cons
 		if (it->isSystem() ||
 		    zypp_filter_solvable (filters, *it))
 			continue;
+		/* TO DO. Make this faster. we loop installed hundreds of times */
 
 		match = FALSE;
 		for (sat_it_t i = installed.begin (); !match && i != installed.end (); i++) {
@@ -1489,7 +1540,7 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo
 			}
 
 			pk_backend_job_error_code (job, PK_ERROR_ENUM_TRANSACTION_ERROR,
-						   "Transaction could not be completed.\n Theses packages could not be installed: %s",
+						   "Transaction could not be completed.\n These packages could not be installed: %s",
 						   todolist.str().c_str());
 
 			goto exit;
@@ -1751,8 +1802,9 @@ backend_get_requires_thread (PkBackendJob *job, GVariant *params, gpointer user_
 
 		// get-requires only works for installed packages. It's meaningless for stuff in the repo
 		// same with yum backend
-		if (!solvable.isSystem ())
+		if (!(solvable.isSystem () || zypp_satisfied_pattern(solvable))) { 
 			continue;
+		}
 		// set Package as to be uninstalled
 		package.status ().setToBeUninstalled (ResStatus::USER);
 
@@ -2532,7 +2584,9 @@ backend_install_packages_thread (PkBackendJob *job, GVariant *params, gpointer u
 			return;
 		}
 		delete (items);
-
+		// Rebuild pool after installation
+		// TODO: PLU This does not help. Installed has still wrong status
+		zypp_build_pool (zypp, TRUE, TRUE);
 		pk_backend_job_set_percentage (job, 100);
 
 	} catch (const Exception &ex) {
@@ -2798,6 +2852,9 @@ backend_find_packages_thread (PkBackendJob *job, GVariant *params, gpointer user
 	}
 
 	search = values[0];  //Fixme - support the possible multiple values (logical OR search)
+	if (g_str_has_prefix (search, "pattern:"))
+		search += strlen("pattern:");  // skipp pattern
+
 	role = pk_backend_job_get_role(job);
 
 	pk_backend_job_set_status (job, PK_STATUS_ENUM_QUERY);
@@ -2814,6 +2871,7 @@ backend_find_packages_thread (PkBackendJob *job, GVariant *params, gpointer user
 	case PK_ROLE_ENUM_SEARCH_NAME:
 		zypp_build_pool (zypp, TRUE); // seems to be necessary?
 		q.addKind( ResKind::package );
+		q.addKind( ResKind::pattern );
 		q.addKind( ResKind::srcpackage );
 		q.addAttribute( sat::SolvAttr::name );
 		// Note: The query result is NOT sorted packages first, then srcpackage.
@@ -2823,6 +2881,7 @@ backend_find_packages_thread (PkBackendJob *job, GVariant *params, gpointer user
 	case PK_ROLE_ENUM_SEARCH_DETAILS:
 		zypp_build_pool (zypp, TRUE); // seems to be necessary?
 		q.addKind( ResKind::package );
+		q.addKind( ResKind::pattern );
 		//q.addKind( ResKind::srcpackage );
 		q.addAttribute( sat::SolvAttr::name );
 		q.addAttribute( sat::SolvAttr::description );
@@ -2832,6 +2891,7 @@ backend_find_packages_thread (PkBackendJob *job, GVariant *params, gpointer user
 	case PK_ROLE_ENUM_SEARCH_FILE: {
 		zypp_build_pool (zypp, TRUE);
 		q.addKind( ResKind::package );
+		q.addKind( ResKind::pattern );
 		q.addAttribute( sat::SolvAttr::name );
 		q.addAttribute( sat::SolvAttr::description );
 		q.addAttribute( sat::SolvAttr::filelist );
@@ -3121,6 +3181,10 @@ backend_get_packages_thread (PkBackendJob *job, GVariant *params, gpointer user_
 	zypp_build_pool (zypp, TRUE);
 	ResPool pool = ResPool::instance ();
 	for (ResPool::byKind_iterator it = pool.byKindBegin (ResKind::package); it != pool.byKindEnd (ResKind::package); ++it) {
+		v.push_back (it->satSolvable ());
+	}
+	/* Get also patterns */
+	for (ResPool::byKind_iterator it = pool.byKindBegin (ResKind::pattern); it != pool.byKindEnd (ResKind::pattern); ++it) {
 		v.push_back (it->satSolvable ());
 	}
 
@@ -3589,6 +3653,112 @@ void
 pk_backend_download_packages (PkBackend *backend, PkBackendJob *job, gchar **package_ids, const gchar *directory)
 {
 	pk_backend_job_thread_create (job, backend_download_packages_thread, NULL, NULL);
+}
+
+/**
+ * struct DistUpgrade: Contains parameters for the upgrade-system command
+ **/
+struct DistUpgrade {
+	DistUpgrade(const gchar *distro_id, PkUpgradeKindEnum upgrade_kind)
+		: distro_id(g_strdup(distro_id))
+		, upgrade_kind(upgrade_kind)
+	{
+	}
+
+	~DistUpgrade()
+	{
+		g_free(distro_id);
+	}
+
+	gchar *distro_id;
+	PkUpgradeKindEnum upgrade_kind;
+};
+
+static void
+backend_upgrade_system_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
+{
+	DistUpgrade *parameters = static_cast<DistUpgrade *>(user_data);
+	/**
+	 * Parameters passed to upgrade-system. Unused right now, but
+	 * could be used in the future (distro_id and upgrade_kind).
+	 *
+	 * Possible values for upgrade_kind:
+	 *
+	 *  - PK_UPGRADE_KIND_ENUM_MINIMAL
+	 *  - PK_UPGRADE_KIND_ENUM_DEFAULT
+	 *  - PK_UPGRADE_KIND_ENUM_COMPLETE
+	 *
+	 * (all other values should be considered invalid)
+	 **/
+	delete parameters;
+
+	PkBitfield transaction_flags;
+	g_variant_get (params, "(t)",
+			&transaction_flags);
+
+	ZyppJob zjob(job);
+	ZYpp::Ptr zypp = zjob.get_zypp();
+
+	if (zypp == NULL) {
+		pk_backend_job_finished (job);
+		return;
+	}
+
+	try
+	{
+		// Modeled after dist_upgrade() in Zypper's src/solve-commit.cc
+		zypp->resolver()->setForceResolve(true);
+		zypp->resolver()->setOnlyRequires(false);
+		zypp->resolver()->setIgnoreAlreadyRecommended(true);
+
+		pk_backend_job_set_status (job, PK_STATUS_ENUM_REFRESH_CACHE);
+		if (!zypp_refresh_cache (job, zypp, FALSE)) {
+			zypp_backend_finished_error (job,
+					PK_ERROR_ENUM_REPO_NOT_AVAILABLE,
+					"Cannot refresh package cache.");
+			return;
+		}
+
+		// Must be called after zypp_refresh_cache to see locally-installed files
+		ResPool pool = zypp_build_pool (zypp, TRUE);
+
+		pk_backend_job_set_status (job, PK_STATUS_ENUM_DEP_RESOLVE);
+		if (!zypp->resolver()->doUpgrade()) {
+			zypp_backend_finished_error (job,
+					PK_ERROR_ENUM_INTERNAL_ERROR,
+					"Cannot calculate dist-upgrade.");
+			return;
+		}
+
+		ZYppCommitPolicy policy;
+		policy.restrictToMedia (0); // 0 == install all packages regardless to media
+		policy.downloadMode (DownloadInHeaps);
+		policy.syncPoolAfterCommit (true);
+
+		ZYppCommitResult result = zypp->commit (policy);
+
+		if (!result.allDone()) {
+			zypp_backend_finished_error (job,
+					PK_ERROR_ENUM_LOCAL_INSTALL_FAILED,
+					"Could not perform dist-upgrade.");
+			return;
+		}
+	} catch (const Exception &ex) {
+		zypp_backend_finished_error (job,
+				PK_ERROR_ENUM_PACKAGE_DOWNLOAD_FAILED,
+				ex.asUserString().c_str());
+		return;
+	}
+
+	pk_backend_job_finished (job);
+}
+
+void
+pk_backend_upgrade_system (PkBackend *backend, PkBackendJob *job,
+	const gchar *distro_id, PkUpgradeKindEnum upgrade_kind)
+{
+	pk_backend_job_thread_create (job, backend_upgrade_system_thread,
+			new DistUpgrade(distro_id, upgrade_kind), NULL);
 }
 
 /**
