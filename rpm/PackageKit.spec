@@ -3,6 +3,11 @@
 %define dbus_glib_version       0.74
 %define policykit_version       0.92
 
+# Vendor-specific values displayed in PackageKit user interfaces
+%define vendor_name             Mer
+%define vendor_bugs             http://bugs.merproject.org/
+%define vendor_icon             mer-logo-small
+
 Summary:   Package management service
 Name:      PackageKit
 Version:   0.8.9
@@ -202,6 +207,13 @@ popd > /dev/null
 
 # Remove docs
 rm -rf %{buildroot}/usr/share/gtk-doc/ %{buildroot}/usr/share/PackageKit/website/
+
+# Add vendor-specific values to system configuration
+sed -i \
+    -e 's#^\(DefaultUrl=\).*$#\1%{vendor_bugs}#g' \
+    -e 's#^\(VendorName=\).*$#\1%{vendor_name}#g' \
+    -e 's#^\(VendorIcon=\).*$#\1%{vendor_icon}#g' \
+    ${RPM_BUILD_ROOT}%{_sysconfdir}/PackageKit/Vendor.conf
 
 %find_lang %name
 
