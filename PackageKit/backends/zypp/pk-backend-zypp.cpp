@@ -102,7 +102,8 @@ using zypp::filesystem::PathInfo;
 typedef enum {
         INSTALL,
         REMOVE,
-        UPDATE
+        UPDATE,
+        UPGRADE,
 } PerformType;
 
 
@@ -1405,7 +1406,15 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo
 		// Gather up any dependencies
 		pk_backend_job_set_status (job, PK_STATUS_ENUM_DEP_RESOLVE);
 		zypp->resolver ()->setIgnoreAlreadyRecommended (TRUE);
-		if (!zypp->resolver ()->resolvePool ()) {
+		bool resolveResult = false;
+		if (type == UPGRADE) {
+			// Modeled after dist_upgrade() in Zypper's src/solve-commit.cc
+			zypp->resolver()->setOnlyRequires(false);
+			resolveResult = zypp->resolver()->doUpgrade();
+		} else {
+			resolveResult = zypp->resolver()->resolvePool();
+		}
+		if (!resolveResult) {
 			// Manual intervention required to resolve dependencies
 			// TODO: Figure out what we need to do with PackageKit
 			// to pull off interactive problem solving.
@@ -1445,6 +1454,7 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo
 			pk_backend_job_set_status (job, PK_STATUS_ENUM_REMOVE);
 			break;
 		case UPDATE:
+		case UPGRADE:
 			pk_backend_job_set_status (job, PK_STATUS_ENUM_UPDATE);
 			break;
 		}
@@ -1468,6 +1478,9 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo
 					// for updates we only care for updates
 					if (it->status ().isToBeUninstalledDueToUpgrade ())
 						continue;
+					break;
+				case UPGRADE:
+					// for dist upgrades, we want to see everything
 					break;
 				}
 				
@@ -3706,11 +3719,6 @@ backend_upgrade_system_thread (PkBackendJob *job, GVariant *params, gpointer use
 
 	try
 	{
-		// Modeled after dist_upgrade() in Zypper's src/solve-commit.cc
-		zypp->resolver()->setForceResolve(true);
-		zypp->resolver()->setOnlyRequires(false);
-		zypp->resolver()->setIgnoreAlreadyRecommended(true);
-
 		pk_backend_job_set_status (job, PK_STATUS_ENUM_REFRESH_CACHE);
 		if (!zypp_refresh_cache (job, zypp, FALSE)) {
 			zypp_backend_finished_error (job,
@@ -3722,25 +3730,7 @@ backend_upgrade_system_thread (PkBackendJob *job, GVariant *params, gpointer use
 		// Must be called after zypp_refresh_cache to see locally-installed files
 		ResPool pool = zypp_build_pool (zypp, TRUE);
 
-		pk_backend_job_set_status (job, PK_STATUS_ENUM_DEP_RESOLVE);
-		if (!zypp->resolver()->doUpgrade()) {
-			zypp_backend_finished_error (job,
-					PK_ERROR_ENUM_INTERNAL_ERROR,
-					"Cannot calculate dist-upgrade.");
-			return;
-		}
-
-		ZYppCommitPolicy policy;
-		policy.restrictToMedia (0); // 0 == install all packages regardless to media
-		policy.downloadMode (DownloadInHeaps);
-		policy.syncPoolAfterCommit (true);
-
-		ZYppCommitResult result = zypp->commit (policy);
-
-		if (!result.allDone()) {
-			zypp_backend_finished_error (job,
-					PK_ERROR_ENUM_LOCAL_INSTALL_FAILED,
-					"Could not perform dist-upgrade.");
+		if (!zypp_perform_execution (job, zypp, UPGRADE, TRUE, transaction_flags)) {
 			return;
 		}
 	} catch (const Exception &ex) {
