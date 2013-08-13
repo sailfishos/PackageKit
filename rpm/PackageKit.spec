@@ -215,6 +215,11 @@ sed -i \
     -e 's#^\(VendorIcon=\).*$#\1%{vendor_icon}#g' \
     ${RPM_BUILD_ROOT}%{_sysconfdir}/PackageKit/Vendor.conf
 
+# Enable runtime support for connman
+sed -i \
+    -e 's#^\(UseNetworkConnman=\).*$#\1true#g' \
+    ${RPM_BUILD_ROOT}%{_sysconfdir}/PackageKit/PackageKit.conf
+
 %find_lang %name
 
 %post
