@@ -2176,11 +2176,6 @@ pk_backend_get_distro_upgrades (PkBackend *backend, PkBackendJob *job)
 static void
 backend_refresh_cache_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
 {
-	gboolean force;
-	g_variant_get (params, "(b)",
-		       &force);
-
-	MIL << force << endl;
 	ZyppJob zjob(job);
 	ZYpp::Ptr zypp = zjob.get_zypp();
 
@@ -2189,7 +2184,7 @@ backend_refresh_cache_thread (PkBackendJob *job, GVariant *params, gpointer user
 		return;
 	}
 
-	zypp_refresh_cache (job, zypp, force);
+	zypp_refresh_cache (job, zypp, TRUE);
 	pk_backend_job_finished (job);
 }
 
