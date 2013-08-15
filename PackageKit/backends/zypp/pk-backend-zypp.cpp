@@ -1107,10 +1107,10 @@ zypp_filter_solvable (PkBitfield filters, const sat::Solvable &item)
 	for (guint i = 0; i < PK_FILTER_ENUM_LAST; i++) {
 		if ((filters & pk_bitfield_value (i)) == 0)
 			continue;
-		if (i == PK_FILTER_ENUM_INSTALLED && !(item.isSystem () || zypp_satisfied_pattern(item))){
+		if (i == PK_FILTER_ENUM_INSTALLED && !(item.isSystem ())) {
 			return TRUE;
 		}
-		if (i == PK_FILTER_ENUM_NOT_INSTALLED && (item.isSystem () || zypp_satisfied_pattern(item))){
+		if (i == PK_FILTER_ENUM_NOT_INSTALLED && (item.isSystem ())) {
 			return TRUE;
 		}
 		if (i == PK_FILTER_ENUM_ARCH) {
@@ -1168,7 +1168,7 @@ zypp_emit_filtered_packages_in_list (PkBackendJob *job, PkBitfield filters, cons
 
 	// always emit system installed packages first
 	for (sat_it_t it = v.begin (); it != v.end (); ++it) {
-		if (!(it->isSystem() || zypp_satisfied_pattern(*it)) ||
+		if (!(it->isSystem()) ||
 		    zypp_filter_solvable (filters, *it)) {
 			continue;
 		}
@@ -1815,7 +1815,7 @@ backend_get_requires_thread (PkBackendJob *job, GVariant *params, gpointer user_
 
 		// get-requires only works for installed packages. It's meaningless for stuff in the repo
 		// same with yum backend
-		if (!(solvable.isSystem () || zypp_satisfied_pattern(solvable))) { 
+		if (!(solvable.isSystem ())) {
 			continue;
 		}
 		// set Package as to be uninstalled
@@ -3169,11 +3169,11 @@ pk_backend_get_files(PkBackend *backend, PkBackendJob *job, gchar **package_ids)
 static void
 backend_get_packages_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
 {
-	MIL << endl;
-
 	PkBitfield _filters;
 	g_variant_get (params, "(t)",
 		       &_filters);
+
+	MIL << pk_filter_bitfield_to_string(_filters) << endl;
 
 	ZyppJob zjob(job);
 	ZYpp::Ptr zypp = zjob.get_zypp();
