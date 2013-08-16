@@ -44,6 +44,7 @@ BuildRequires: libzypp-devel >= 5.20.0
 BuildRequires: qt-devel
 BuildRequires: bzip2-devel
 BuildRequires: pkgconfig(systemd)
+BuildRequires: libxslt
 
 %description
 PackageKit is a D-Bus abstraction layer that allows the session user
@@ -274,7 +275,7 @@ update-mime-database %{_datadir}/mime &> /dev/null || :
 %files docs
 %defattr(-,root,root,-)
 %doc README AUTHORS  COPYING
-#%{_mandir}/man1/*
+%{_mandir}/man1/*
 
 %files zypp
 %defattr(-,root,root,-)
