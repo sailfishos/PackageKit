@@ -5,6 +5,9 @@
  * Copyright (c) 2007-2008 Stefan Haas <shaas@suse.de>
  * Copyright (c) 2007-2008 Scott Reeves <sreeves@novell.com>
  *
+ * Copyright (c) 2013 Jolla Ltd.
+ * Contact: Thomas Perl <thomas.perl@jollamobile.com>
+ *
  * Licensed under the GNU General Public License Version 2
  *
  * This program is free software; you can redistribute it and/or modify
@@ -1394,7 +1397,7 @@ zypp_backend_pool_item_notify (PkBackendJob  *job,
 static gboolean
 zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gboolean force, PkBitfield transaction_flags)
 {
-	MIL << force << " " << pk_filter_bitfield_to_string(transaction_flags) << endl;
+	MIL << force << " " << pk_transaction_flag_bitfield_to_string(transaction_flags) << endl;
 	gboolean ret = FALSE;
 	
 	PkBackend *backend = PK_BACKEND(pk_backend_job_get_backend(job));
@@ -3686,23 +3689,36 @@ static void
 backend_upgrade_system_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
 {
 	DistUpgrade *parameters = static_cast<DistUpgrade *>(user_data);
+	PkBitfield transaction_flags = 0;
+	std::string pattern_name = parameters->distro_id;
+
 	/**
-	 * Parameters passed to upgrade-system. Unused right now, but
-	 * could be used in the future (distro_id and upgrade_kind).
-	 *
 	 * Possible values for upgrade_kind:
 	 *
 	 *  - PK_UPGRADE_KIND_ENUM_MINIMAL
-	 *  - PK_UPGRADE_KIND_ENUM_DEFAULT
-	 *  - PK_UPGRADE_KIND_ENUM_COMPLETE
+	 *    Only download upgrades, do not install them
 	 *
-	 * (all other values should be considered invalid)
+	 *  - PK_UPGRADE_KIND_ENUM_DEFAULT (default if nothing else specified)
+	 *    Download and install upgrades
+	 *
+	 *  - PK_UPGRADE_KIND_ENUM_COMPLETE
+	 *    Download and install upgrades, install named pattern (distroId)
 	 **/
+	switch (parameters->upgrade_kind) {
+		case PK_UPGRADE_KIND_ENUM_MINIMAL:
+			MIL << "Downloading upgrades (no installation)" << std::endl;
+			pk_bitfield_add(transaction_flags,
+					PK_TRANSACTION_FLAG_ENUM_ONLY_DOWNLOAD);
+			break;
+		case PK_UPGRADE_KIND_ENUM_COMPLETE:
+			MIL << "Installing upgrades and named pattern:" << pattern_name << std::endl;
+			break;
+		case PK_UPGRADE_KIND_ENUM_DEFAULT:
+		default:
+			MIL << "Downloading and installing upgrades" << std::endl;
+			break;
+	}
 	delete parameters;
-
-	PkBitfield transaction_flags;
-	g_variant_get (params, "(t)",
-			&transaction_flags);
 
 	ZyppJob zjob(job);
 	ZYpp::Ptr zypp = zjob.get_zypp();
