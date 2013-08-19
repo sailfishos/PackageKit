@@ -3781,7 +3781,8 @@ backend_upgrade_system_thread (PkBackendJob *job, GVariant *params, gpointer use
 {
 	DistUpgrade *parameters = static_cast<DistUpgrade *>(user_data);
 	PkBitfield transaction_flags = 0;
-	std::string pattern_name = parameters->distro_id;
+	std::string pattern_name = std::string("pattern:") + std::string(parameters->distro_id);
+	bool install_pattern = false;
 
 	/**
 	 * Possible values for upgrade_kind:
@@ -3800,9 +3801,12 @@ backend_upgrade_system_thread (PkBackendJob *job, GVariant *params, gpointer use
 			MIL << "Downloading upgrades (no installation)" << std::endl;
 			pk_bitfield_add(transaction_flags,
 					PK_TRANSACTION_FLAG_ENUM_ONLY_DOWNLOAD);
+			// Also try downloading dependencies of the pattern
+			install_pattern = true;
 			break;
 		case PK_UPGRADE_KIND_ENUM_COMPLETE:
-			MIL << "Installing upgrades and named pattern:" << pattern_name << std::endl;
+			MIL << "Installing upgrades and " << pattern_name << std::endl;
+			install_pattern = true;
 			break;
 		case PK_UPGRADE_KIND_ENUM_DEFAULT:
 		default:
@@ -3832,8 +3836,26 @@ backend_upgrade_system_thread (PkBackendJob *job, GVariant *params, gpointer use
 		// Must be called after zypp_refresh_cache to see locally-installed files
 		ResPool pool = zypp_build_pool (zypp, TRUE);
 
+		if (install_pattern) {
+			MIL << "Looking for pattern: " << pattern_name << std::endl;
+
+			vector<sat::Solvable> patterns;
+			zypp_get_packages_by_name(pattern_name.c_str(), ResKind::pattern, patterns);
+
+			if (patterns.size() == 0) {
+				MIL << "Pattern not found: " << pattern_name << " - ignoring" << std::endl;
+			}
+
+			vector<sat::Solvable>::iterator it;
+			for (it = patterns.begin(); it != patterns.end(); ++it) {
+				PoolItem pattern(*it);
+				MIL << "Marking " << pattern << " for installation" << std::endl;
+				pattern.status().setToBeInstalled (ResStatus::USER);
+			}
+		}
+
 		if (!zypp_perform_execution (job, zypp, UPGRADE, TRUE, transaction_flags)) {
-			return;
+			MIL << "Upgrade execution failed" << std::endl;
 		}
 	} catch (const Exception &ex) {
 		zypp_backend_finished_error (job,
