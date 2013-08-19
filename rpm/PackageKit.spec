@@ -173,6 +173,13 @@ user to restart the computer or remove and re-insert the device.
 sleep 1
 find -name Makefile.in -exec touch '{}' \;
 
+# for some obscure reason autoshit decided that it needs to regenerate
+# stuff, despite the touch orgy. We can't really regenerate it due to
+# the crapton of dependencies we'd need to package just for the sake
+# of regenerating configure, but fortunately auto* seems to be perfectly
+# happy of calling /bin/true masked as aclocal-1.13
+mkdir -p hack; ln -sf /bin/true hack/aclocal-1.13
+export PATH=$PATH:`pwd`/hack
 export LIBS=-ldbus-glib-1
 %configure \
         --disable-static \
@@ -190,6 +197,7 @@ rm -f `find . -name "*.moc"`
 make %{?_smp_mflags}
 
 %install
+export PATH=$PATH:`pwd`/hack
 %make_install
 
 touch $RPM_BUILD_ROOT%{_localstatedir}/cache/PackageKit/groups.sqlite
