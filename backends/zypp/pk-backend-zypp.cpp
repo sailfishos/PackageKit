@@ -3646,6 +3646,7 @@ backend_upgrade_system_thread (PkBackendJob *job,
 	PkBitfield transaction_flags = 0;
 	PkUpgradeKindEnum upgrade_kind = PK_UPGRADE_KIND_ENUM_UNKNOWN;
 	const gchar *distro_id = NULL;
+	bool install_pattern = false;
 
 	ZyppJob zjob (job);
 	set<PoolItem> candidates;
@@ -3659,6 +3660,8 @@ backend_upgrade_system_thread (PkBackendJob *job,
 	if (zypp == NULL) {
 		return;
 	}
+
+	std::string pattern_name = std::string("pattern:") + std::string(distro_id);
 
 	/**
 	 * Possible values for upgrade_kind:
@@ -3677,9 +3680,12 @@ backend_upgrade_system_thread (PkBackendJob *job,
 			MIL << "Downloading upgrades (no installation)" << std::endl;
 			pk_bitfield_add(transaction_flags,
 					PK_TRANSACTION_FLAG_ENUM_ONLY_DOWNLOAD);
+			// Also try downloading dependencies of the pattern
+			install_pattern = true;
 			break;
 		case PK_UPGRADE_KIND_ENUM_COMPLETE:
-			MIL << "Installing upgrades and named pattern:" << distro_id << std::endl;
+			MIL << "Installing upgrades and " << pattern_name << std::endl;
+			install_pattern = true;
 			break;
 		case PK_UPGRADE_KIND_ENUM_DEFAULT:
 		default:
@@ -3693,6 +3699,25 @@ backend_upgrade_system_thread (PkBackendJob *job,
 	}
 	zypp_build_pool (zypp, TRUE);
 	zypp_get_updates (job, zypp, candidates);
+
+	if (install_pattern) {
+		MIL << "Looking for pattern: " << pattern_name << std::endl;
+
+		vector<sat::Solvable> patterns;
+		zypp_get_packages_by_name(pattern_name.c_str(), ResKind::pattern, patterns);
+
+		if (patterns.size() == 0) {
+			MIL << "Pattern not found: " << pattern_name << " - ignoring" << std::endl;
+		}
+
+		vector<sat::Solvable>::iterator it;
+		for (it = patterns.begin(); it != patterns.end(); ++it) {
+			PoolItem pattern(*it);
+			MIL << "Marking " << pattern << " for installation" << std::endl;
+			pattern.status().setToBeInstalled (ResStatus::USER);
+		}
+	}
+
 	if (candidates.empty ()) {
 		pk_backend_job_error_code (job, PK_ERROR_ENUM_NO_DISTRO_UPGRADE_DATA,
 					   "No Distribution Upgrade Available.");
