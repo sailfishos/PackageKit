@@ -3813,7 +3813,7 @@ backend_upgrade_system_thread (PkBackendJob *job, GVariant *params, gpointer use
 		ResPool pool = zypp_build_pool (zypp, TRUE);
 
 		if (!zypp_perform_execution (job, zypp, UPGRADE, TRUE, transaction_flags)) {
-			return;
+			MIL << "Upgrade execution failed" << std::endl;
 		}
 	} catch (const Exception &ex) {
 		zypp_backend_finished_error (job,
