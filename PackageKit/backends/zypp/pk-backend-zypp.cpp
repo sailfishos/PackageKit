@@ -199,6 +199,10 @@ namespace ZyppBackend
 class PkBackendZYppPrivate;
 static PkBackendZYppPrivate *priv = 0;
 
+/* Overall progress update helpers */
+void zypp_backend_installation_finished(PkBackendJob *job);
+void zypp_backend_removal_finished(PkBackendJob *job);
+
 class ZyppBackendReceiver
 {
 public:
@@ -291,6 +295,7 @@ struct InstallResolvableReportReceiver : public zypp::callback::ReceiveReport<zy
 	virtual void finish (zypp::Resolvable::constPtr resolvable, Error error, const std::string &reason, RpmLevel level) {
 		MIL << reason << " " << _package_id << " " << resolvable << std::endl;
 		if (_package_id != NULL) {
+			zypp_backend_installation_finished(_job);
 			//pk_backend_job_package (_backend, PK_INFO_ENUM_INSTALLED, _package_id, "TODO: Put the package summary here if possible");
 			clear_package_id ();
 		}
@@ -323,6 +328,7 @@ struct RemoveResolvableReportReceiver : public zypp::callback::ReceiveReport<zyp
 
 	virtual void finish (zypp::Resolvable::constPtr resolvable, Error error, const std::string &reason) {
 		if (_package_id != NULL) {
+			zypp_backend_removal_finished(_job);
 			pk_backend_job_package (_job, PK_INFO_ENUM_FINISHED, _package_id, "");
 			clear_package_id ();
 		}
@@ -542,6 +548,43 @@ class EventDirector
 		}
 };
 
+struct ExecCounters {
+	ExecCounters()
+		: total_installs(0)
+		, current_installs(0)
+		, total_removals(0)
+		, current_removals(0)
+	{
+	}
+
+	void update(PkBackendJob *job)
+	{
+		int total = (total_installs + total_removals);
+		int current = (current_installs + current_removals);
+
+		if (current > total) {
+			MIL << "current > total!" << std::endl;
+			current = total;
+		}
+
+		MIL << "Overall progress update: " << current << " of " << total << std::endl;
+		pk_backend_job_set_percentage (job, 100 * current / total);
+	}
+
+	void reset()
+	{
+		total_installs = 0;
+		current_installs = 0;
+		total_removals = 0;
+		current_removals = 0;
+	}
+
+	int total_installs;
+	int current_installs;
+	int total_removals;
+	int current_removals;
+};
+
 class PkBackendZYppPrivate {
  public:
 	std::vector<std::string> signatures;
@@ -549,7 +592,20 @@ class PkBackendZYppPrivate {
 	PkBackendJob *currentJob;
 	
 	pthread_mutex_t zypp_mutex;
+	ExecCounters exec;
 };
+
+void zypp_backend_installation_finished(PkBackendJob *job)
+{
+	priv->exec.current_installs += 1;
+	priv->exec.update(job);
+}
+
+void zypp_backend_removal_finished(PkBackendJob *job)
+{
+	priv->exec.current_removals += 1;
+	priv->exec.update(job);
+}
 
 }; // namespace ZyppBackend
 
@@ -1528,6 +1584,20 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo
 		if (!pk_bitfield_contain (transaction_flags, PK_TRANSACTION_FLAG_ENUM_ONLY_TRUSTED))
 			policy.rpmNoSignature(true);
 
+		// Get number of installations and removals for overall progress
+		priv->exec.reset();
+		for (ResPool::const_iterator it = pool.begin (); it != pool.end (); ++it) {
+			if (it->status().isToBeInstalled()) {
+				priv->exec.total_installs += 1;
+			} else if (it->status().isToBeUninstalled() &&
+					!it->status().isToBeUninstalledDueToUpgrade()) {
+				priv->exec.total_removals += 1;
+			}
+		}
+		MIL << "Summary before commit: " << std::endl;
+		MIL << " total installs = " << priv->exec.total_installs << std::endl;
+		MIL << " total removals = " << priv->exec.total_removals << std::endl;
+
 		ZYppCommitResult result = zypp->commit (policy);
 
 		bool worked = result.allDone();
@@ -1746,6 +1816,7 @@ pk_backend_initialize (PkBackend *backend)
 	priv = new PkBackendZYppPrivate;
 	priv->currentJob = 0;
 	priv->zypp_mutex = PTHREAD_MUTEX_INITIALIZER;
+	priv->exec = ExecCounters();
 	zypp_logging ();
 
 	g_debug ("zypp_backend_initialize");
