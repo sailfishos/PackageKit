@@ -77,6 +77,7 @@
 #include <zypp/base/LogControl.h>
 #include <zypp/base/Logger.h>
 #include <zypp/base/String.h>
+#include <zypp/media/MediaException.h>
 #include <zypp/parser/IniDict.h>
 #include <zypp/parser/ParseException.h>
 #include <zypp/parser/ProductFileReader.h>
@@ -455,6 +456,17 @@ struct MediaChangeReportReceiver : public zypp::callback::ReceiveReport<zypp::me
 	}
 };
 
+struct AuthenticationReportReceiver : public zypp::callback::ReceiveReport<zypp::media::AuthenticationReport>, ZyppBackendReceiver
+{
+	virtual bool prompt (const zypp::Url &url, const std::string &description, zypp::media::AuthData &auth_data)
+	{
+		MIL << "needs authentication:" << url << std::endl;
+		/* No interactive authentication supported - admit failure */
+		ZYPP_THROW(zypp::media::MediaException("Authentication failed (is SSU set up correctly?)"));
+		return false; // Not reached
+	}
+};
+
 struct ProgressReportReceiver : public zypp::callback::ReceiveReport<zypp::ProgressReport>, ZyppBackendReceiver
 {
         virtual void start (const zypp::ProgressData &progress)
@@ -538,6 +550,7 @@ class EventDirector
                 ZyppBackend::KeyRingReportReceiver _keyRingReport;
 		ZyppBackend::DigestReportReceiver _digestReport;
                 ZyppBackend::MediaChangeReportReceiver _mediaChangeReport;
+		ZyppBackend::AuthenticationReportReceiver _authenticationReport;
                 ZyppBackend::ProgressReportReceiver _progressReport;
 
 	public:
@@ -551,6 +564,7 @@ class EventDirector
                         _keyRingReport.connect ();
 			_digestReport.connect ();
                         _mediaChangeReport.connect ();
+			_authenticationReport.connect ();
                         _progressReport.connect ();
 		}
 
@@ -564,6 +578,7 @@ class EventDirector
                         _keyRingReport._job = job;
 			_digestReport._job = job;
                         _mediaChangeReport._job = job;
+			_authenticationReport._job = job;
                         _progressReport._job = job;	
 		}
 
@@ -577,6 +592,7 @@ class EventDirector
                         _keyRingReport.disconnect ();
 			_digestReport.disconnect ();
                         _mediaChangeReport.disconnect ();
+			_authenticationReport.disconnect ();
                         _progressReport.disconnect ();
 		}
 };
