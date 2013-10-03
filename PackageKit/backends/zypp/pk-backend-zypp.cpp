@@ -199,6 +199,16 @@ zypp_build_package_id_from_resolvable (const sat::Solvable &resolvable)
 	return package_id;
 }
 
+static long
+get_free_disk_space(const char *path)
+{
+	struct statfs stat;
+	if (statfs(path, &stat) != 0) {
+		MIL << "Cannot get free disk space at " << path << ":" << strerror(errno) << std::endl;
+	}
+	return (stat.f_bsize * stat.f_bavail);
+}
+
 namespace ZyppBackend
 {
 class PkBackendZYppPrivate;
@@ -1622,25 +1632,55 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo
 		if (!pk_bitfield_contain (transaction_flags, PK_TRANSACTION_FLAG_ENUM_ONLY_TRUSTED))
 			policy.rpmNoSignature(true);
 
+		long total_download_bytes = 0;
+		long total_install_bytes = 0;
+		long total_remove_bytes = 0;
+
 		// Get number of installations and removals for overall progress
 		priv->exec.reset();
 		for (ResPool::const_iterator it = pool.begin (); it != pool.end (); ++it) {
 			if (it->status().isToBeInstalled()) {
 				if (!only_download) {
 					priv->exec.total_installs += 1;
+					total_install_bytes += it->resolvable()->installSize();
 				}
 				priv->exec.total_downloads += 1;
+				// TODO: Only count download bytes if updates were not yet downloaded
+				total_download_bytes += it->resolvable()->downloadSize();
 			} else if (it->status().isToBeUninstalled() &&
 					!it->status().isToBeUninstalledDueToUpgrade()) {
 				if (!only_download) {
 					priv->exec.total_removals += 1;
+					total_remove_bytes += it->resolvable()->installSize();
 				}
 			}
 		}
+
 		MIL << "Summary before commit: " << std::endl;
 		MIL << " total downloads = " << priv->exec.total_downloads << std::endl;
 		MIL << " total installs = " << priv->exec.total_installs << std::endl;
 		MIL << " total removals = " << priv->exec.total_removals << std::endl;
+
+		long required_space_bytes = (total_download_bytes + total_install_bytes - total_remove_bytes);
+		// XXX: This assumes package downloads also end up in rootfs, and that
+		// installed files will all take up space in the rootfs only
+		long free_space_bytes = get_free_disk_space("/");
+		long remaining_space_bytes = free_space_bytes - required_space_bytes;
+
+		MIL << "Space requirements: " << std::endl;
+		MIL << " free = " << free_space_bytes << std::endl;
+		MIL << " download = " << total_download_bytes << std::endl;
+		MIL << " install = " << total_install_bytes << std::endl;
+		MIL << " remove = " << total_remove_bytes << std::endl;
+		MIL << " remaining = " << remaining_space_bytes << std::endl;
+
+		if (remaining_space_bytes < 0) {
+			// Not enough space
+			pk_backend_job_error_code (job, PK_ERROR_ENUM_NO_SPACE_ON_DEVICE,
+					"Not enough space. Need %ld bytes, have %ld bytes.\n",
+					required_space_bytes, free_space_bytes);
+			goto exit;
+		}
 
 		ZYppCommitResult result = zypp->commit (policy);
 
@@ -3692,7 +3732,6 @@ backend_download_packages_thread (PkBackendJob *job, GVariant *params, gpointer 
 {
 	MIL << endl;
 	gchar **package_ids;
-	gulong size = 0;
 	const gchar *tmpDir;
 
 	g_variant_get(params, "(^a&ss)",
@@ -3726,19 +3765,17 @@ backend_download_packages_thread (PkBackendJob *job, GVariant *params, gpointer 
 				return;
 			}
 
-			PoolItem item(solvable);
-			size += 2 * make<ResObject>(solvable)->downloadSize();
-
 			filesystem::Pathname repo_dir = solvable.repository().info().packagesPath();
-			struct statfs stat;
-			statfs(repo_dir.c_str(), &stat);
-			if (size > stat.f_bavail * 4) {
+			unsigned long freeSpace = get_free_disk_space(repo_dir.c_str());
+			unsigned long downloadSize = make<ResObject>(solvable)->downloadSize();
+			if (downloadSize > freeSpace) {
 				pk_backend_job_error_code (job, PK_ERROR_ENUM_NO_SPACE_ON_DEVICE,
 					"Insufficient space in download directory '%s'.", repo_dir.c_str());
 				pk_backend_job_finished (job);
 				return;
 			}
 
+			PoolItem item(solvable);
 			repo::RepoMediaAccess access;
 			repo::DeltaCandidates deltas;
 			ManagedFile tmp_file;
