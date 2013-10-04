@@ -199,14 +199,15 @@ zypp_build_package_id_from_resolvable (const sat::Solvable &resolvable)
 	return package_id;
 }
 
-static long
+static int64_t
 get_free_disk_space(const char *path)
 {
 	struct statfs stat;
 	if (statfs(path, &stat) != 0) {
 		MIL << "Cannot get free disk space at " << path << ":" << strerror(errno) << std::endl;
+		return 0;
 	}
-	return (stat.f_bsize * stat.f_bavail);
+	return ((int64_t)stat.f_bsize * (int64_t)stat.f_bavail);
 }
 
 namespace ZyppBackend
@@ -1632,9 +1633,9 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo
 		if (!pk_bitfield_contain (transaction_flags, PK_TRANSACTION_FLAG_ENUM_ONLY_TRUSTED))
 			policy.rpmNoSignature(true);
 
-		long total_download_bytes = 0;
-		long total_install_bytes = 0;
-		long total_remove_bytes = 0;
+		int64_t total_download_bytes = 0;
+		int64_t total_install_bytes = 0;
+		int64_t total_remove_bytes = 0;
 
 		// Get number of installations and removals for overall progress
 		priv->exec.reset();
@@ -1661,11 +1662,11 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo
 		MIL << " total installs = " << priv->exec.total_installs << std::endl;
 		MIL << " total removals = " << priv->exec.total_removals << std::endl;
 
-		long required_space_bytes = (total_download_bytes + total_install_bytes - total_remove_bytes);
+		int64_t required_space_bytes = (total_download_bytes + total_install_bytes - total_remove_bytes);
 		// XXX: This assumes package downloads also end up in rootfs, and that
 		// installed files will all take up space in the rootfs only
-		long free_space_bytes = get_free_disk_space("/");
-		long remaining_space_bytes = free_space_bytes - required_space_bytes;
+		int64_t free_space_bytes = get_free_disk_space("/");
+		int64_t remaining_space_bytes = free_space_bytes - required_space_bytes;
 
 		MIL << "Space requirements: " << std::endl;
 		MIL << " free = " << free_space_bytes << std::endl;
@@ -1677,8 +1678,9 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo
 		if (remaining_space_bytes < 0) {
 			// Not enough space
 			pk_backend_job_error_code (job, PK_ERROR_ENUM_NO_SPACE_ON_DEVICE,
-					"Not enough space. Need %ld bytes, have %ld bytes.\n",
-					required_space_bytes, free_space_bytes);
+					"Not enough space. Need %.2f MiB, have %.2f MiB.\n",
+					(float)required_space_bytes / (1024. * 1024),
+					(float)free_space_bytes / (1024. * 1024));
 			goto exit;
 		}
 
@@ -3766,8 +3768,8 @@ backend_download_packages_thread (PkBackendJob *job, GVariant *params, gpointer 
 			}
 
 			filesystem::Pathname repo_dir = solvable.repository().info().packagesPath();
-			unsigned long freeSpace = get_free_disk_space(repo_dir.c_str());
-			unsigned long downloadSize = make<ResObject>(solvable)->downloadSize();
+			int64_t freeSpace = get_free_disk_space(repo_dir.c_str());
+			int64_t downloadSize = make<ResObject>(solvable)->downloadSize();
 			if (downloadSize > freeSpace) {
 				pk_backend_job_error_code (job, PK_ERROR_ENUM_NO_SPACE_ON_DEVICE,
 					"Insufficient space in download directory '%s'.", repo_dir.c_str());
