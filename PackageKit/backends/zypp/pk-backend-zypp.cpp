@@ -226,7 +226,6 @@ class SystemdLogWriter : public zypp::log::LineWriter {
 public:
 	SystemdLogWriter()
 		: zypp::log::LineWriter()
-		  , m_writer(this)
 	{
 	}
 
@@ -248,9 +247,6 @@ public:
 			}
 		}
 	}
-
-private:
-	zypp::base::LogControl::TmpLineWriter m_writer;
 };
 
 
@@ -662,7 +658,7 @@ class PkBackendZYppPrivate {
 	std::vector<std::string> signatures;
 	EventDirector eventDirector;
 	PkBackendJob *currentJob;
-	SystemdLogWriter logWriter;
+	zypp::base::LogControl::TmpLineWriter *tmpLineWriter;
 	
 	pthread_mutex_t zypp_mutex;
 	ExecCounters exec;
@@ -1903,6 +1899,8 @@ pk_backend_initialize (PkBackend *backend)
 	priv->currentJob = 0;
 	priv->zypp_mutex = PTHREAD_MUTEX_INITIALIZER;
 	priv->exec = ExecCounters();
+	// tmpLineWriter takes ownership of new SystemdLogWriter
+	priv->tmpLineWriter = new zypp::base::LogControl::TmpLineWriter(new SystemdLogWriter);
 
 	g_debug ("zypp_backend_initialize");
 	//_updating_self = FALSE;
@@ -1916,6 +1914,10 @@ void
 pk_backend_destroy (PkBackend *backend)
 {
 	g_debug ("zypp_backend_destroy");
+
+	if (priv->tmpLineWriter) {
+		delete priv->tmpLineWriter;
+	}
 
 	g_free (_repoName);
 	delete priv;
