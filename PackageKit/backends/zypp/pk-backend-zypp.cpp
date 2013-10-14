@@ -1636,6 +1636,11 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo
 		// Get number of installations and removals for overall progress
 		priv->exec.reset();
 		for (ResPool::const_iterator it = pool.begin (); it != pool.end (); ++it) {
+			// Patterns are not "installed" or "downloaded" as such
+			if (it->satSolvable().kind() == ResKind::pattern) {
+				continue;
+			}
+
 			if (it->status().isToBeInstalled()) {
 				if (!only_download) {
 					priv->exec.total_installs += 1;
