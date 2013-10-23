@@ -108,6 +108,16 @@ typedef enum {
         UPGRADE_SYSTEM
 } PerformType;
 
+/**
+ * In which phase of a install/upgrade transaction are we currently?
+ * Used for determining which counts are used for progress reporting.
+ **/
+enum ProgressPhase {
+	NO_PROGRESS_YET = 0,
+	DOWNLOADING_PACKAGES,
+	INSTALLING_AND_REMOVING_PACKAGES,
+};
+
 typedef enum {
         NEWER_VERSION,
         OLDER_VERSION,
@@ -610,7 +620,9 @@ class EventDirector
 
 struct ExecCounters {
 	ExecCounters()
-		: total_installs(0)
+		: current_phase(NO_PROGRESS_YET)
+		, last_percentage(-1)
+		, total_installs(0)
 		, current_installs(0)
 		, total_removals(0)
 		, current_removals(0)
@@ -619,22 +631,78 @@ struct ExecCounters {
 	{
 	}
 
+	void setPhase(enum ProgressPhase phase)
+	{
+		if (current_phase != phase) {
+			switch (phase) {
+				case DOWNLOADING_PACKAGES:
+					LOG << "Entering download phase" << std::endl;
+					break;
+				case INSTALLING_AND_REMOVING_PACKAGES:
+					LOG << "Entering install phase" << std::endl;
+					break;
+				default:
+					LOG << "Unknown progress phase: " << phase << std::endl;
+					break;
+			}
+			current_phase = phase;
+		}
+	}
+
 	void update(PkBackendJob *job)
 	{
-		int total = (total_downloads + total_installs + total_removals);
-		int current = (current_downloads + current_installs + current_removals);
+		int current = 0;
+		int total = 0;
+
+		switch (current_phase) {
+			case DOWNLOADING_PACKAGES:
+				current = current_downloads;
+				total = total_downloads;
+				LOG << "Download progress update: " << current << " of " << total << std::endl;
+				break;
+			case INSTALLING_AND_REMOVING_PACKAGES:
+				current = (current_installs + current_removals);
+				total = (total_installs + total_removals);
+				LOG << "Install progress update: " << current << " of " << total << std::endl;
+				break;
+			case NO_PROGRESS_YET:
+			default:
+				LOG << "Updating percentage before download / install" << std::endl;
+				current = 0;
+				total = 1;
+				break;
+		}
 
 		if (current > total) {
 			MIL << "current > total!" << std::endl;
 			current = total;
 		}
 
-		LOG << "Overall progress update: " << current << " of " << total << std::endl;
-		pk_backend_job_set_percentage (job, 100 * current / total);
+		int percentage = -1;
+		if (total != 0) {
+			percentage = 100 * current / total;
+		}
+
+		if (last_percentage > percentage) {
+			/**
+			 * We need to send an invalid percentage if we want to send a lower
+			 * percentage again, otherwise PackageKit's backend handling code
+			 * will filter out (see "check under" in src/pk-backend-job.c,
+			 * function pk_backend_job_set_percentage) these percentage updates.
+			 **/
+			LOG << "Resetting percentage after mode change" << std::endl;
+			pk_backend_job_set_percentage (job, PK_BACKEND_PERCENTAGE_INVALID);
+		}
+
+		pk_backend_job_set_percentage (job, percentage);
+		last_percentage = percentage;
 	}
 
 	void reset()
 	{
+		current_phase = NO_PROGRESS_YET;
+		last_percentage = -1;
+
 		total_installs = 0;
 		current_installs = 0;
 		total_removals = 0;
@@ -642,6 +710,18 @@ struct ExecCounters {
 		total_downloads = 0;
 		current_downloads = 0;
 	}
+
+	/**
+	 * Tells the current phase of a install/upgrade transaction. It assumes
+	 * that the downloadMode is set to DownloadInHeaps, so that all downloads
+	 * are carried out before installations/removals take place.
+	 **/
+	enum ProgressPhase current_phase;
+
+	/**
+	 * Last percentage sent to PackageKit
+	 **/
+	int last_percentage;
 
 	int total_installs;
 	int current_installs;
@@ -663,18 +743,21 @@ class PkBackendZYppPrivate {
 
 void zypp_backend_download_finished(PkBackendJob *job)
 {
+	priv->exec.setPhase(DOWNLOADING_PACKAGES);
 	priv->exec.current_downloads += 1;
 	priv->exec.update(job);
 }
 
 void zypp_backend_installation_finished(PkBackendJob *job)
 {
+	priv->exec.setPhase(INSTALLING_AND_REMOVING_PACKAGES);
 	priv->exec.current_installs += 1;
 	priv->exec.update(job);
 }
 
 void zypp_backend_removal_finished(PkBackendJob *job)
 {
+	priv->exec.setPhase(INSTALLING_AND_REMOVING_PACKAGES);
 	priv->exec.current_removals += 1;
 	priv->exec.update(job);
 }
