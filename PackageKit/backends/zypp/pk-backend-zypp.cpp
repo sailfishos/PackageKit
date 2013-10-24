@@ -83,6 +83,7 @@
 #include <zypp/base/Logger.h>
 #include <zypp/base/String.h>
 #include <zypp/media/MediaManager.h>
+#include <zypp/media/MediaException.h>
 #include <zypp/parser/IniDict.h>
 #include <zypp/parser/ParseException.h>
 #include <zypp/parser/ProductFileReader.h>
@@ -447,7 +448,8 @@ struct AuthenticationReportReceiver : public zypp::callback::ReceiveReport<zypp:
 		std::string urlstr = url.asString();
 		PK_ZYPP_LOG("Needs authentication: %s", urlstr.c_str());
 		/* No interactive authentication supported - admit failure */
-		return false;
+		ZYPP_THROW(zypp::media::MediaException("Authentication failed (is SSU set up correctly?)"));
+		return false; // Not reached
 	}
 };
 
