@@ -41,7 +41,6 @@ BuildRequires: gst-plugins-base-devel
 BuildRequires: pango-devel
 BuildRequires: fontconfig-devel
 BuildRequires: libzypp-devel >= 5.20.0
-BuildRequires: qt-devel
 BuildRequires: bzip2-devel
 BuildRequires: pkgconfig(systemd)
 # FIXME, blows up, as this piece of shit downloads stuff from sourceforge
