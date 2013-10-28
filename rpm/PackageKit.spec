@@ -192,7 +192,6 @@ export LIBS=-ldbus-glib-1
         --disable-tests \
         --disable-bash_completion
 
-rm -f `find . -name "*.moc"`
 make %{?_smp_mflags}
 
 %install
