@@ -762,6 +762,19 @@ ZyppJob::~ZyppJob()
 	pthread_mutex_unlock(&priv->zypp_mutex);
 }
 
+static bool
+zypp_handle_broken_rpmdb (ZYpp::Ptr zypp, const Exception &e)
+{
+	PK_ZYPP_LOG("Exception while initializing target (RPM DB broken?): %s", e.asUserString().c_str());
+
+	// TODO: Repair RPM db, then re-initializeTarget() and if that works, return true
+	//filesystem::Pathname pathname("/");
+	//zypp->initializeTarget (pathname);
+
+	// Right now, we can't repair the database, so fail instead
+	return false;
+}
+
 /**
  * Initialize Zypp (Factory method)
  */
@@ -777,8 +790,16 @@ ZyppJob::get_zypp()
 		/* TODO: we need to lifecycle manage this, detect changes
 		   in the requested 'root' etc. */
 		if (!initialized) {
-			filesystem::Pathname pathname("/");
-			zypp->initializeTarget (pathname);
+			try {
+				filesystem::Pathname pathname("/");
+				zypp->initializeTarget (pathname);
+			} catch (const Exception &e) {
+				// Try to recover from a broken RPM database
+				if (!zypp_handle_broken_rpmdb(zypp, e)) {
+					// Rethrow, so we report an internal error below
+					throw;
+				}
+			}
 
 			initialized = TRUE;
 		}
@@ -1807,10 +1828,18 @@ zypp_refresh_cache (PkBackendJob *job, ZYpp::Ptr zypp, gboolean force)
 
 	if (zypp == NULL)
 		return  FALSE;
-	filesystem::Pathname pathname("/");
-	// This call is needed to refresh system rpmdb status while refresh cache
-	zypp->finishTarget ();
-	zypp->initializeTarget (pathname);
+	try {
+		// This call is needed to refresh system rpmdb status while refresh cache
+		zypp->finishTarget ();
+		filesystem::Pathname pathname("/");
+		zypp->initializeTarget (pathname);
+	} catch (const Exception &e) {
+		// Try to recover from a broken RPM database
+		if (!zypp_handle_broken_rpmdb(zypp, e)) {
+			pk_backend_job_error_code (job, PK_ERROR_ENUM_INTERNAL_ERROR, e.asUserString().c_str() );
+			return FALSE;
+		}
+	}
 
 	pk_backend_job_set_status (job, PK_STATUS_ENUM_REFRESH_CACHE);
 	pk_backend_job_set_percentage (job, 0);
