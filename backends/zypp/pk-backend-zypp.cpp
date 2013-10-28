@@ -791,6 +791,32 @@ ZyppJob::~ZyppJob()
 	pthread_mutex_unlock(&priv->zypp_mutex);
 }
 
+static bool
+zypp_handle_broken_rpmdb (ZYpp::Ptr zypp, const Exception &e)
+{
+	LOG << "Exception while initializing target (RPM DB broken?): %s" << e.asUserString().c_str() << std::endl;
+
+	if (system("/usr/bin/db_recover -h /var/lib/rpm") == EXIT_SUCCESS) {
+		LOG << "RPM DB recovery successful." << std::endl;
+
+		try {
+			filesystem::Pathname pathname("/");
+			zypp->initializeTarget (pathname);
+			return true;
+		}
+		catch(const Exception &e) {
+			ERR << "RPM DB reinitialization failed." << std::endl;
+			return false;
+		}
+	}
+	else {
+		ERR << "RPM DB recovery failed." << std::endl;
+		// TODO should we fork and do rm -f /var/lib/rpm/__db*; rpm --rebuilddb here?
+		return false;
+
+	}
+}
+
 /**
  * Initialize Zypp (Factory method)
  */
@@ -806,8 +832,16 @@ ZyppJob::get_zypp()
 		/* TODO: we need to lifecycle manage this, detect changes
 		   in the requested 'root' etc. */
 		if (!initialized) {
-			filesystem::Pathname pathname("/");
-			zypp->initializeTarget (pathname);
+			try {
+				filesystem::Pathname pathname("/");
+				zypp->initializeTarget (pathname);
+			} catch (const Exception &e) {
+				// Try to recover from a broken RPM database
+				if (!zypp_handle_broken_rpmdb(zypp, e)) {
+					// Rethrow, so we report an internal error below
+					throw;
+				}
+			}
 
 			initialized = TRUE;
 		}
