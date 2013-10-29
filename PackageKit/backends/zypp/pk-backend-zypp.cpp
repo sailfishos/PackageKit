@@ -1235,8 +1235,11 @@ class AbortTransactionException {
 static gboolean
 zypp_refresh_meta_and_cache (RepoManager &manager, RepoInfo &repo, bool force = false)
 {
+	zypp::RepoManager::RawMetadataRefreshPolicy refreshPolicy =
+		force ? RepoManager::RefreshForced : RepoManager::RefreshIfNeeded;
+
 	try {
-		if (manager.checkIfToRefreshMetadata (repo, repo.url())    //RepoManager::RefreshIfNeededIgnoreDelay)
+		if (manager.checkIfToRefreshMetadata (repo, repo.url(), refreshPolicy)
 		    != RepoManager::REFRESH_NEEDED)
 			return TRUE;
 
