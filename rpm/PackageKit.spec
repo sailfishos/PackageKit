@@ -189,6 +189,7 @@ export LIBS=-ldbus-glib-1
         --disable-strict \
         --disable-networkmanager \
         --disable-gtk-doc-html \
+        --disable-man-pages \
         --disable-tests \
         --disable-bash_completion
 

@@ -87,7 +87,7 @@ struct PkBackendJobPrivate
 	gchar			*proxy_https;
 	gchar			*proxy_socks;
 	gpointer		 user_data;
-	GThread			*thread;
+	gboolean                 has_thread;
 	guint64			 download_size_remaining;
 	guint			 cache_age;
 	guint			 download_files;
@@ -127,7 +127,7 @@ pk_backend_job_reset (PkBackendJob *job)
 	job->priv->finished = FALSE;
 	job->priv->has_sent_package = FALSE;
 	job->priv->set_error = FALSE;
-	job->priv->thread = NULL;
+	job->priv->has_thread = FALSE;
 	job->priv->exit = PK_EXIT_ENUM_UNKNOWN;
 	job->priv->role = PK_ROLE_ENUM_UNKNOWN;
 	job->priv->status = PK_STATUS_ENUM_UNKNOWN;
@@ -804,13 +804,12 @@ pk_backend_job_thread_create (PkBackendJob *job,
 			      gpointer user_data,
 			      GDestroyNotify destroy_func)
 {
-	gboolean ret = TRUE;
 	PkBackendJobThreadHelper *helper = NULL;
 
 	g_return_val_if_fail (PK_IS_BACKEND_JOB (job), FALSE);
 	g_return_val_if_fail (func != NULL, FALSE);
 
-	if (job->priv->thread != NULL) {
+	if (job->priv->has_thread) {
 		g_warning ("already has thread");
 		return FALSE;
 	}
@@ -822,23 +821,31 @@ pk_backend_job_thread_create (PkBackendJob *job,
 	helper->user_data = user_data;
 
 	/* create a thread */
+	GThread *thread = NULL;
+
 #if GLIB_CHECK_VERSION(2,31,0)
-	job->priv->thread = g_thread_new ("PK-Backend",
-					  pk_backend_job_thread_setup,
-					  helper);
+	thread = g_thread_new ("PK-Backend",
+			       pk_backend_job_thread_setup,
+			       helper);
 #else
-	job->priv->thread = g_thread_create (pk_backend_job_thread_setup,
-					     helper,
-					     FALSE,
-					     NULL);
+	thread = g_thread_create (pk_backend_job_thread_setup,
+				  helper,
+				  TRUE,
+				  NULL);
 #endif
-	if (job->priv->thread == NULL) {
+
+	if (thread == NULL) {
 		g_warning ("failed to create thread");
-		ret = FALSE;
-		goto out;
+		return FALSE;
 	}
-out:
-	return ret;
+
+	// Need to unref the thread here to avoid leaking GThread objects,
+	// the thread keeps a reference to itself while running, so it
+	// will be auto-removed when the thread stops running.
+	g_thread_unref(thread);
+
+	job->priv->has_thread = TRUE;
+	return TRUE;
 }
 
 /**

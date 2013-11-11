@@ -767,12 +767,25 @@ zypp_handle_broken_rpmdb (ZYpp::Ptr zypp, const Exception &e)
 {
 	PK_ZYPP_LOG("Exception while initializing target (RPM DB broken?): %s", e.asUserString().c_str());
 
-	// TODO: Repair RPM db, then re-initializeTarget() and if that works, return true
-	//filesystem::Pathname pathname("/");
-	//zypp->initializeTarget (pathname);
+	if (system("/usr/bin/db_recover -h /var/lib/rpm") == EXIT_SUCCESS) {
+		PK_ZYPP_LOG("RPM DB recovery successful.");
 
-	// Right now, we can't repair the database, so fail instead
-	return false;
+		try {
+			filesystem::Pathname pathname("/");
+			zypp->initializeTarget (pathname);
+			return true;
+		}
+		catch(const Exception &e) {
+			PK_ZYPP_LOG("RPM DB reinitialization failed.");
+			return false;
+		}
+	}
+	else {
+		PK_ZYPP_LOG("RPM DB recovery failed.");
+		// TODO should we fork and do rm -f /var/lib/rpm/__db*; rpm --rebuilddb here?
+		return false;
+
+	}
 }
 
 /**
@@ -1222,8 +1235,11 @@ class AbortTransactionException {
 static gboolean
 zypp_refresh_meta_and_cache (RepoManager &manager, RepoInfo &repo, bool force = false)
 {
+	zypp::RepoManager::RawMetadataRefreshPolicy refreshPolicy =
+		force ? RepoManager::RefreshForced : RepoManager::RefreshIfNeeded;
+
 	try {
-		if (manager.checkIfToRefreshMetadata (repo, repo.url())    //RepoManager::RefreshIfNeededIgnoreDelay)
+		if (manager.checkIfToRefreshMetadata (repo, repo.url(), refreshPolicy)
 		    != RepoManager::REFRESH_NEEDED)
 			return TRUE;
 
