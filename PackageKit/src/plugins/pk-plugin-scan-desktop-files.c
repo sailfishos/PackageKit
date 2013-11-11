@@ -289,6 +289,12 @@ pk_plugin_sqlite_add_filename (PkPlugin *plugin,
 	else
 		md5 = pk_plugin_get_filename_md5 (filename);
 
+	// Sailfish OS: Avoid scanning of manually installed .desktop files
+	if (strstr(filename, PK_DESKTOP_DEFAULT_APPLICATION_DIR "/apkd_launcher_") == filename) {
+		g_warning ("Skipping custom .desktop file: %s", filename);
+		goto out;
+	}
+
 	/* resolve */
 	package = pk_plugin_get_installed_package_for_file (plugin,
 							    filename,
