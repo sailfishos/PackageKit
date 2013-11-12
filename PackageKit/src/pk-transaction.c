@@ -996,6 +996,8 @@ pk_transaction_plugin_phase (PkTransaction *transaction,
 
 		/* quit the transaction if any of the plugins fail */
 		exit_code = pk_backend_job_get_exit_code (job);
+		g_object_unref(job);
+		job = NULL;
 		if (exit_code != PK_EXIT_ENUM_UNKNOWN &&
 		    exit_code != PK_EXIT_ENUM_SUCCESS) {
 			pk_backend_job_set_exit_code (transaction->priv->job, exit_code);
