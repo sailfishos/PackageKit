@@ -2608,6 +2608,15 @@ backend_install_files_thread (PkBackendJob *job, GVariant *params, gpointer user
 		}
 	}
 
+	// Remove a possibly leftover temporary repository
+	try {
+		RepoInfo oldRepo = manager.getRepositoryInfo("PK_TMP_DIR");
+		manager.removeRepository(oldRepo);
+		PK_ZYPP_LOG("Removed old temporary install repository");
+	} catch (const Exception &ex) {
+		// Repo probably doesn't exist yet - that's GOOD :)
+	}
+
 	// create a plaindir-repo and cache it
 	RepoInfo tmpRepo;
 
