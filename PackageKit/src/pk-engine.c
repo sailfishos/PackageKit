@@ -41,6 +41,9 @@
 #ifdef USE_SECURITY_POLKIT
 #include <polkit/polkit.h>
 #endif
+#ifdef PK_BUILD_MCE
+#include <mce/dbus-names.h>
+#endif
 
 #include "pk-backend.h"
 #include "pk-cache.h"
@@ -104,6 +107,13 @@ struct PkEnginePrivate
 	GDBusProxy		*logind_proxy;
 	gint			 logind_fd;
 #endif
+#ifdef PK_BUILD_MCE
+	GDBusProxy		*mce_proxy;
+	GThread			*mce_thread;
+	gboolean		 mce_thread_active;
+	GMutex			 mce_mutex;
+	GCond			 mce_cond;
+#endif
 };
 
 enum {
@@ -164,6 +174,105 @@ pk_engine_reset_timer (PkEngine *engine)
 {
 	g_timer_reset (engine->priv->timer);
 }
+
+#ifdef PK_BUILD_MCE
+static gpointer
+mce_keepalive_thread_func (gpointer data)
+{
+	PkEngine *engine = PK_ENGINE (data);
+	GVariant *res = NULL;
+	GError *error = NULL;
+
+	res = g_dbus_proxy_call_sync (engine->priv->mce_proxy,
+			MCE_CPU_KEEPALIVE_PERIOD_REQ,
+			NULL,
+			G_DBUS_CALL_FLAGS_NONE,
+			-1,
+			NULL,
+			&error);
+
+	if (res == NULL) {
+		g_warning ("Failed to get mce keepalive period: %s", error->message);
+		g_error_free (error);
+		goto out;
+	}
+
+	// Keepalive period from MCE
+	gint32 keepalive_period = 0;
+	GVariant *period = g_variant_get_child_value (res, 0);
+	if (period) {
+		keepalive_period = g_variant_get_int32 (period);
+		g_variant_unref (period);
+	}
+
+	if (keepalive_period > 0) {
+		g_debug ("Got keepalive period from mce: %u seconds", keepalive_period);
+	} else {
+		keepalive_period = 60;
+		gchar *tmp = g_variant_print(res, TRUE);
+		g_warning ("Got bugus keepalive period (%s), falling back to %u seconds",
+				tmp, keepalive_period);
+		g_free (tmp);
+	}
+	g_variant_unref (res);
+
+	while (engine->priv->mce_thread_active) {
+		error = NULL;
+		res = g_dbus_proxy_call_sync (engine->priv->mce_proxy,
+				MCE_CPU_KEEPALIVE_START_REQ,
+				NULL,
+				G_DBUS_CALL_FLAGS_NONE,
+				-1,
+				NULL,
+				&error);
+		if (res == NULL) {
+			g_warning ("Failed to send keepalive start req: %s", error->message);
+			g_error_free (error);
+			goto out_with_stop;
+		}
+		g_variant_unref (res);
+
+		// Exit immediately after the D-Bus call if there has been a
+		// shutdown request in the meantime (without waiting for cond)
+		if (!engine->priv->mce_thread_active) {
+			break;
+		}
+
+		// Sleep until the next keepalive request needs sending
+		g_mutex_lock(&(engine->priv->mce_mutex));
+
+		gint64 end_time = g_get_monotonic_time () +
+			keepalive_period * G_TIME_SPAN_SECOND;
+
+		g_cond_wait_until (&(engine->priv->mce_cond),
+				&(engine->priv->mce_mutex),
+				end_time);
+
+		g_mutex_unlock(&(engine->priv->mce_mutex));
+	}
+
+out_with_stop:
+	error = NULL;
+	res = g_dbus_proxy_call_sync (engine->priv->mce_proxy,
+			MCE_CPU_KEEPALIVE_STOP_REQ,
+			NULL,
+			G_DBUS_CALL_FLAGS_NONE,
+			-1,
+			NULL,
+			&error);
+
+	if (res == NULL) {
+		g_warning ("Failed to send keepalive stop req: %s", error->message);
+		g_error_free (error);
+		goto out;
+	}
+
+	g_variant_unref (res);
+
+out:
+	return NULL;
+}
+#endif
 
 /**
  * pk_engine_transaction_list_changed_cb:
@@ -438,6 +547,31 @@ pk_engine_get_seconds_idle (PkEngine *engine)
 	/* check for transactions running - a transaction that takes a *long* time might not
 	 * give sufficient percentage updates to not be marked as idle */
 	size = pk_transaction_list_get_size (engine->priv->transaction_list);
+#ifdef PK_BUILD_MCE
+	if (size != 0) {
+		/* start the mce keepalive thread */
+		if (engine->priv->mce_thread == NULL) {
+			g_debug ("Starting up the mce keepalive thread");
+			engine->priv->mce_thread_active = TRUE;
+			engine->priv->mce_thread = g_thread_new("mce-keepalive-sender",
+					mce_keepalive_thread_func, engine);
+			g_debug ("The mce keepalive thread was started");
+		}
+	} else {
+		/* shut down the mce keepalive thread */
+		if (engine->priv->mce_thread_active) {
+			g_debug ("Shutting down the mce keepalive thread");
+			g_mutex_lock(&(engine->priv->mce_mutex));
+			engine->priv->mce_thread_active = FALSE;
+			g_cond_signal(&(engine->priv->mce_cond));
+			g_mutex_unlock(&(engine->priv->mce_mutex));
+			g_thread_join (engine->priv->mce_thread);
+			engine->priv->mce_thread = NULL;
+			g_debug ("The mce keepalive thread was shut down");
+		}
+	}
+#endif
+
 	if (size != 0) {
 		g_debug ("engine idle zero as %i transactions in progress", size);
 		return 0;
@@ -1463,6 +1597,26 @@ pk_engine_proxy_logind_cb (GObject *source_object,
 }
 #endif
 
+#ifdef PK_BUILD_MCE
+/**
+ * pk_engine_proxy_mce_cb:
+ **/
+static void
+pk_engine_proxy_mce_cb (GObject *source_object,
+			GAsyncResult *res,
+			gpointer user_data)
+{
+	GError *error = NULL;
+	PkEngine *engine = PK_ENGINE (user_data);
+
+	engine->priv->mce_proxy = g_dbus_proxy_new_finish (res, &error);
+	if (engine->priv->mce_proxy == NULL) {
+		g_warning ("failed to connect to mce: %s", error->message);
+		g_error_free (error);
+	}
+}
+#endif
+
 /**
  * pk_engine_on_bus_acquired_cb:
  **/
@@ -1493,6 +1647,19 @@ pk_engine_on_bus_acquired_cb (GDBusConnection *connection,
 			  "org.freedesktop.login1.Manager",
 			  NULL, /* GCancellable */
 			  pk_engine_proxy_logind_cb,
+			  engine);
+#endif
+
+#ifdef PK_BUILD_MCE
+	/* connect to mce */
+	g_dbus_proxy_new (connection,
+			  G_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES,
+			  NULL,
+			  MCE_SERVICE,
+			  MCE_REQUEST_PATH,
+			  MCE_REQUEST_IF,
+			  NULL, /* GCancellable */
+			  pk_engine_proxy_mce_cb,
 			  engine);
 #endif
 
@@ -1607,6 +1774,11 @@ pk_engine_init (PkEngine *engine)
 	}
 #endif
 
+#ifdef PK_BUILD_MCE
+	g_mutex_init (&(engine->priv->mce_mutex));
+	g_cond_init (&(engine->priv->mce_cond));
+#endif
+
 	/* set the default proxy */
 	proxy_http = pk_conf_get_string (engine->priv->conf, "ProxyHTTP");
 
@@ -1702,6 +1874,11 @@ pk_engine_finalize (GObject *object)
 		close (engine->priv->logind_fd);
 	if (engine->priv->logind_proxy != NULL)
 		g_object_unref (engine->priv->logind_proxy);
+#endif
+
+#ifdef PK_BUILD_MCE
+	g_mutex_clear(&(engine->priv->mce_mutex));
+	g_cond_clear(&(engine->priv->mce_cond));
 #endif
 
 	/* compulsory gobjects */

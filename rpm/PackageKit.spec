@@ -48,6 +48,7 @@ BuildRequires: fontconfig-devel
 BuildRequires: libzypp-devel >= 5.20.0
 BuildRequires: bzip2-devel
 BuildRequires: pkgconfig(systemd)
+BuildRequires: pkgconfig(mce)
 # FIXME, blows up, as this piece of shit downloads stuff from sourceforge
 #BuildRequires: libxslt
 
@@ -190,6 +191,7 @@ export LIBS=-ldbus-glib-1
         --disable-dummy \
         --enable-zypp \
         --with-default-backend=zypp \
+        --enable-mce \
         --disable-local \
         --disable-strict \
         --disable-networkmanager \
