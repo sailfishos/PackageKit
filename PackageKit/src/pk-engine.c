@@ -210,7 +210,7 @@ mce_keepalive_thread_func (gpointer data)
 	} else {
 		keepalive_period = 60;
 		gchar *tmp = g_variant_print(res, TRUE);
-		g_warning ("Got bugus keepalive period (%s), falling back to %u seconds",
+		g_warning ("Got bogus keepalive period (%s), falling back to %u seconds",
 				tmp, keepalive_period);
 		g_free (tmp);
 	}
