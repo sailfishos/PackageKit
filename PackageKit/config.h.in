@@ -124,6 +124,9 @@
 /* Build local code */
 #undef PK_BUILD_LOCAL
 
+/* Build mce code */
+#undef PK_BUILD_MCE
+
 /* define if NetworkManager is installed */
 #undef PK_BUILD_NETWORKMANAGER
 
