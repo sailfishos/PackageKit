@@ -35,6 +35,7 @@
 #include <sys/wait.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <grp.h>
 
 #include <glib/gstdio.h>
 #include <glib/gi18n.h>
@@ -2854,6 +2855,21 @@ pk_transaction_obtain_authorization (PkTransaction *transaction,
 	PkTransactionPrivate *priv = transaction->priv;
 
 	g_return_val_if_fail (priv->sender != NULL, FALSE);
+
+	/* setgid privileged processes don't need additional authentication */
+	guint pid = pk_dbus_get_pid (priv->dbus, priv->sender);
+	gchar *path = g_strdup_printf ("/proc/%u", pid);
+	struct stat sender_stat;
+	if (stat(path, &sender_stat) == 0) {
+		struct group *sender_group = getgrgid (sender_stat.st_gid);
+		if (sender_group) {
+			g_debug ("Group of sender process: '%s'", sender_group->gr_name);
+			if (g_strcmp0 (sender_group->gr_name, "privileged") == 0) {
+				priv->skip_auth_check = TRUE;
+			}
+		}
+	}
+	g_free (path);
 
 	/* we don't need to authenticate at all to just download
 	 * packages or if we're running unit tests */
