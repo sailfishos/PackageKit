@@ -23,6 +23,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <sys/ioctl.h>
 
 #include "pk-progress-bar.h"
 
@@ -72,7 +73,7 @@ gboolean
 pk_progress_bar_set_padding (PkProgressBar *self, guint padding)
 {
 	g_return_val_if_fail (PK_IS_PROGRESS_BAR (self), FALSE);
-	g_return_val_if_fail (padding < 100, FALSE);
+	g_return_val_if_fail (padding > 0, FALSE);
 	self->priv->padding = padding;
 	return TRUE;
 }
@@ -84,7 +85,7 @@ gboolean
 pk_progress_bar_set_size (PkProgressBar *self, guint size)
 {
 	g_return_val_if_fail (PK_IS_PROGRESS_BAR (self), FALSE);
-	g_return_val_if_fail (size < 100, FALSE);
+	g_return_val_if_fail (size > 0, FALSE);
 	self->priv->size = size;
 	return TRUE;
 }
@@ -103,12 +104,24 @@ pk_progress_bar_draw (PkProgressBar *self, gint percentage)
 	if (percentage == G_MININT)
 		return FALSE;
 
+	/* print line without progress bar */
+	if (percentage == PK_PROGRESS_BAR_PERCENTAGE_INVALID) {
+		/* 11 = strlen(" [] (00%)  ") */
+		gchar *fill = g_strnfill (self->priv->size + 11, ' ');
+		/* 0x1B + 8 = restore cursor */
+		gchar *tmp = g_strdup_printf ("%c8%s", 0x1B, fill);
+		pk_progress_bar_console (self, tmp);
+		g_free (tmp);
+		g_free (fill);
+		return TRUE;
+	}
+
 	/* restore cursor */
 	str = g_string_new ("");
 	g_string_append_printf (str, "%c8", 0x1B);
 
 	section = (guint) ((gfloat) self->priv->size / (gfloat) 100.0 * (gfloat) percentage);
-	g_string_append (str, "[");
+	g_string_append (str, " [");
 	for (i=0; i<section; i++)
 		g_string_append (str, "=");
 	for (i=0; i<self->priv->size - section; i++)
@@ -117,7 +130,7 @@ pk_progress_bar_draw (PkProgressBar *self, gint percentage)
 	if (percentage >= 0 && percentage < 100)
 		g_string_append_printf (str, "(%i%%)  ", percentage);
 	else
-		g_string_append (str, "        ");
+		g_string_append (str, "       ");
 	pk_progress_bar_console (self, str->str);
 	g_string_free (str, TRUE);
 	return TRUE;
@@ -148,7 +161,7 @@ pk_progress_bar_pulse_bar (PkProgressBar *self)
 			self->priv->pulse_state.position--;
 	}
 
-	g_string_append (str, "[");
+	g_string_append (str, " [");
 	for (i=0; i<(gint)self->priv->pulse_state.position-1; i++)
 		g_string_append (str, " ");
 	g_string_append (str, "==");
@@ -226,7 +239,7 @@ out:
  * @length: the desired length of the output string, with padding
  *
  * Returns the text padded to a length with spaces. If the string is
- * longer than length then a longer string is returned.
+ * longer than length then the string is elided to fit the space.
  *
  * Return value: The padded string
  **/
@@ -243,6 +256,16 @@ pk_strpad (const gchar *data, guint length)
 
 	/* ITS4: ignore, only used for formatting */
 	data_len = strlen (data);
+
+	/* elide text with horizontal ellipsis */
+	if (data_len > length) {
+		gchar *tmp = g_strdup (data);
+		tmp[length - 1] = '\0';
+		//"\xe2\x80\xa6" = horizontal ellipsis (in UTF-8)
+		gchar *result = g_strdup_printf ("%s\xe2\x80\xa6", tmp);
+		g_free (tmp);
+		return result;
+	}
 
 	/* calculate */
 	size = (length - data_len);
@@ -266,10 +289,21 @@ pk_progress_bar_start (PkProgressBar *self, const gchar *text)
 
 	g_return_val_if_fail (PK_IS_PROGRESS_BAR (self), FALSE);
 
+	/* Determine terminal size, and calculate text/bar size from it */
+	struct winsize w;
+	if (ioctl (self->priv->tty_fd, TIOCGWINSZ, &w) == 0) {
+		/* 11 = strlen(" [] (00%)  ") */
+		int available_width = w.ws_col - 1 - 11;
+		int progress_bar_width = available_width / 3;
+		int message_width = available_width - progress_bar_width;
+		pk_progress_bar_set_padding(self, message_width);
+		pk_progress_bar_set_size(self, progress_bar_width);
+	}
+
 	/* finish old value */
 	str = g_string_new ("");
 	if (self->priv->percentage != G_MININT) {
-		pk_progress_bar_draw (self, 100);
+		pk_progress_bar_draw (self, PK_PROGRESS_BAR_PERCENTAGE_INVALID);
 		g_string_append (str, "\n");
 	}
 
@@ -306,7 +340,7 @@ pk_progress_bar_end (PkProgressBar *self)
 		return FALSE;
 
 	self->priv->percentage = G_MININT;
-	pk_progress_bar_draw (self, 100);
+	pk_progress_bar_draw (self, PK_PROGRESS_BAR_PERCENTAGE_INVALID);
 	str = g_string_new ("");
 	g_string_append_printf (str, "\n");
 	pk_progress_bar_console (self, str->str);
