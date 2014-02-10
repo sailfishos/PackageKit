@@ -310,7 +310,7 @@ mce_keepalive_thread_func (gpointer data)
 		}
 
 		// Send the keepalive message once we have a proxy available
-		if (!mce_keepalive_send (proxy, MCE_CPU_KEEPALIVE_START_REQ)) {
+		if (proxy && !mce_keepalive_send (proxy, MCE_CPU_KEEPALIVE_START_REQ)) {
 			// mce has gone away (due to an upgrade?) - remove proxy
 			g_warning ("Lost connection to mce");
 			g_object_unref (proxy);
