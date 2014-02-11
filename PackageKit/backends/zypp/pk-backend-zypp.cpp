@@ -1261,10 +1261,10 @@ zypp_refresh_meta_and_cache (RepoManager &manager, RepoInfo &repo, bool force = 
 
 
 static gboolean
-system_and_package_are_x86 (sat::Solvable item)
+system_and_package_are_x86 (Arch arch)
 {
 	// i586, i686, ... all should be considered the same arch for our comparison
-	return ( item.arch() == Arch_i586 && ZConfig::defaultSystemArchitecture() == Arch_i686 );
+	return ( arch == Arch_i586 && ZConfig::defaultSystemArchitecture() == Arch_i686 );
 }
 
 static gboolean
@@ -1300,12 +1300,12 @@ zypp_filter_solvable (PkBitfield filters, const sat::Solvable &item)
 		if (i == PK_FILTER_ENUM_ARCH) {
 			if (item.arch () != ZConfig::defaultSystemArchitecture () &&
 			    item.arch () != Arch_noarch &&
-			    ! system_and_package_are_x86 (item))
+			    ! system_and_package_are_x86 (item.arch ()))
 				return TRUE;
 		}
 		if (i == PK_FILTER_ENUM_NOT_ARCH) {
 			if (item.arch () == ZConfig::defaultSystemArchitecture () ||
-			    system_and_package_are_x86 (item))
+			    system_and_package_are_x86 (item.arch ()))
 				return TRUE;
 		}
 		if (i == PK_FILTER_ENUM_SOURCE && !(isKind<SrcPackage>(item)))
@@ -2595,6 +2595,17 @@ backend_install_files_thread (PkBackendJob *job, GVariant *params, gpointer user
 			zypp_backend_finished_error (
 				job, PK_ERROR_ENUM_LOCAL_INSTALL_FAILED,
 				"%s is not valid rpm-File", full_paths[i]);
+			return;
+		}
+
+		// check if the file has an acceptable architecture
+		if (rpmHeader->tag_arch() != ZConfig::defaultSystemArchitecture () &&
+				rpmHeader->tag_arch() != Arch_noarch &&
+				! system_and_package_are_x86 (rpmHeader->tag_arch ())) {
+			zypp_backend_finished_error (
+				job, PK_ERROR_ENUM_LOCAL_INSTALL_FAILED,
+				"%s has wrong architecture: %s", full_paths[i],
+				rpmHeader->tag_arch ().asString (). c_str());
 			return;
 		}
 
