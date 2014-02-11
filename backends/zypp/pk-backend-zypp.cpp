@@ -2819,6 +2819,15 @@ backend_install_files_thread (PkBackendJob *job, GVariant *params, gpointer user
 			return;
 		}
 
+		// check if the file has an acceptable architecture
+		if (! rpmHeader->tag_arch().compatibleWith (ZConfig::instance().systemArchitecture ())) {
+			zypp_backend_finished_error (
+				job, PK_ERROR_ENUM_LOCAL_INSTALL_FAILED,
+				"%s has wrong architecture: %s", full_paths[i],
+				rpmHeader->tag_arch ().asString (). c_str());
+			return;
+		}
+
 		// copy the rpm into tmpdir
 		string tempDest = tmpDir.path ().asString () + "/" + rpmHeader->tag_name () + ".rpm";
 		if (filesystem::copy (full_paths[i], tempDest) != 0) {
