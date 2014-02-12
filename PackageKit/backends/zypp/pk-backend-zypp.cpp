@@ -2815,7 +2815,7 @@ backend_install_packages_thread (PkBackendJob *job, GVariant *params, gpointer u
 		ResPool pool = zypp_build_pool (zypp, TRUE);
 		PoolStatusSaver saver;
 		pk_backend_job_set_percentage (job, 10);
-		vector<PoolItem> *items = new vector<PoolItem> ();
+		vector<PoolItem> items;
 
 		guint to_install = 0;
 		for (guint i = 0; package_ids[i]; i++) {
@@ -2826,7 +2826,7 @@ backend_install_packages_thread (PkBackendJob *job, GVariant *params, gpointer u
 			PoolItem item(solvable);
 			// set status to ToBeInstalled
 			item.status ().setToBeInstalled (ResStatus::USER);
-			items->push_back (item);
+			items.push_back (item);
 		
 		}
 			
@@ -2843,14 +2843,12 @@ backend_install_packages_thread (PkBackendJob *job, GVariant *params, gpointer u
 		// PK_INFO_ENUM_DOWNLOADING | INSTALLING) for each package.
 		if (!zypp_perform_execution (job, zypp, INSTALL, FALSE, transaction_flags)) {
 			// reset the status of the marked packages
-			for (vector<PoolItem>::iterator it = items->begin (); it != items->end (); ++it) {
+			for (vector<PoolItem>::iterator it = items.begin (); it != items.end (); ++it) {
 				it->statusReset ();
 			}
-			delete (items);
 			pk_backend_job_finished (job);
 			return;
 		}
-		delete (items);
 		// Rebuild pool after installation
 		// TODO: PLU This does not help. Installed has still wrong status
 		zypp_build_pool (zypp, TRUE, TRUE);
@@ -2910,7 +2908,7 @@ backend_remove_packages_thread (PkBackendJob *job, GVariant *params, gpointer us
 	gboolean autoremove = false;
 	gboolean allow_deps = false;
 	gchar **package_ids;
-	vector<PoolItem> *items = new vector<PoolItem> ();
+	vector<PoolItem> items;
 
 	g_variant_get(params, "(t^a&sbb)",
 		      &transaction_flags,
@@ -2949,7 +2947,7 @@ backend_remove_packages_thread (PkBackendJob *job, GVariant *params, gpointer us
 		PoolItem item(solvable);
 		if (solvable.isSystem ()) {
 			item.status ().setToBeUninstalled (ResStatus::USER);
-			items->push_back (item);
+			items.push_back (item);
 		} else {
 			item.status ().resetTransact (ResStatus::USER);
 		}
@@ -2961,17 +2959,15 @@ backend_remove_packages_thread (PkBackendJob *job, GVariant *params, gpointer us
 	{
 		if (!zypp_perform_execution (job, zypp, REMOVE, TRUE, transaction_flags)) {
 			//reset the status of the marked packages
-			for (vector<PoolItem>::iterator it = items->begin (); it != items->end (); ++it) {
+			for (vector<PoolItem>::iterator it = items.begin (); it != items.end (); ++it) {
 				it->statusReset();
 			}
-			delete (items);
 			zypp_backend_finished_error (
 				job, PK_ERROR_ENUM_TRANSACTION_ERROR,
 				"Couldn't remove the package");
 			return;
 		}
 
-		delete (items);
 		pk_backend_job_set_percentage (job, 100);
 
 	} catch (const repo::RepoNotFoundException &ex) {
