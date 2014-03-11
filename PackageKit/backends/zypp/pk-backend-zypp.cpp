@@ -3341,6 +3341,7 @@ pk_backend_repo_enable (PkBackend *backend, PkBackendJob *job, const gchar *rid,
 		repo.setEnabled (enabled);
 		manager.modifyRepository (rid, repo);
 		if (!enabled) {
+			manager.cleanMetadata (repo);
 			Repository repository = sat::Pool::instance ().reposFind (repo.alias ());
 			repository.eraseFromPool ();
 		}
