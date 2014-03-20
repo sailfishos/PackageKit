@@ -1,0 +1,26 @@
+# Remove RPM database region files
+#
+# Copyright (C) 2014 Jolla Oy
+# Contact: Juha Kallioinen <juha.kallioinen@jolla.com>
+#
+# There's a chance that RPM database's region files get corrupted in a
+# way that any program that tries to open the database for writing
+# gets stuck. This state is persistent over reboot, but recoverable by
+# calling db_recover or by simply removing the region files.
+#
+# The removed region files are recreated when the first privileged
+# process opens the rpm database for reading or writing.
+#
+
+[Unit]
+Description=Clean RPM db region files at each reboot
+DefaultDependencies=no
+After=systemd-remount-fs.service
+Before=sysinit.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c "/bin/rm -f /var/lib/rpm/__db.???"
+
+[Install]
+WantedBy=basic.target
