@@ -19,6 +19,7 @@ License:   GPLv2+
 Group:     System/Libraries
 URL:       http://www.packagekit.org
 Source0:   http://www.packagekit.org/releases/%{name}-%{version}.tar.gz
+Source100: rpm-db-clean.service
 
 Requires: PackageKit-zypp = %{version}-%{release}
 Requires: shared-mime-info
@@ -206,6 +207,7 @@ export LIBS=-ldbus-glib-1
 make %{?_smp_mflags}
 
 %install
+
 export PATH=$PATH:`pwd`/hack
 %make_install
 
@@ -239,6 +241,9 @@ sed -i \
     -e 's#^\(UseNetworkConnman=\).*$#\1true#g' \
     ${RPM_BUILD_ROOT}%{_sysconfdir}/PackageKit/PackageKit.conf
 
+# install cleanup service file
+install -D -m 644 %{S:100} %{buildroot}%{_unitdir}/rpm-db-clean.service
+
 %find_lang %name
 
 %post
@@ -250,6 +255,12 @@ update-mime-database %{_datadir}/mime &> /dev/null || :
 %post glib -p /sbin/ldconfig
 
 %postun glib -p /sbin/ldconfig
+
+%post zypp
+/bin/systemctl preset rpm-db-clean.service >/dev/null 2>&1 || :
+
+%preun zypp
+%systemd_preun rpm-db-clean.service
 
 %files -f %{name}.lang
 %defattr(-,root,root,-)
@@ -299,6 +310,7 @@ update-mime-database %{_datadir}/mime &> /dev/null || :
 %defattr(-,root,root,-)
 %doc README AUTHORS  COPYING
 %{_libdir}/packagekit-backend/libpk_backend_zypp.so
+%{_unitdir}/rpm-db-clean.service
 
 %files glib
 %defattr(-,root,root,-)
