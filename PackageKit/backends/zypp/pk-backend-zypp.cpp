@@ -243,6 +243,7 @@ zypp_backend_job_thread_wrapper (PkBackendJob *job, GVariant *params,
 				ex.asUserString().c_str());
 		pk_backend_job_error_code (job, PK_ERROR_ENUM_INTERNAL_ERROR,
 				ex.asUserString().c_str());
+		pk_backend_job_finished (job);
 	}
 
 	delete data;
