@@ -222,6 +222,61 @@ zypp_build_package_id_from_resolvable (const sat::Solvable &resolvable)
 	return package_id;
 }
 
+class ZyppBackendThreadWrapperData {
+public:
+	ZyppBackendThreadWrapperData(PkBackendJobThreadFunc func,
+			gpointer user_data, GDestroyNotify destroy_func)
+		: func(func)
+		, user_data(user_data)
+		, destroy_func(destroy_func)
+	{
+	}
+
+	~ZyppBackendThreadWrapperData()
+	{
+	}
+
+	PkBackendJobThreadFunc func;
+	gpointer user_data;
+	GDestroyNotify destroy_func;
+};
+
+static void
+zypp_backend_job_thread_wrapper (PkBackendJob *job, GVariant *params,
+		gpointer user_data)
+{
+	ZyppBackendThreadWrapperData *data = static_cast<ZyppBackendThreadWrapperData *>(user_data);
+
+	try {
+		// Call real thread function
+		data->func(job, params, data->user_data);
+	} catch (const Exception &ex) {
+		ERR << "C++ exception in zypp backend job: " << ex.asUserString () << std::endl;
+		pk_backend_job_error_code (job, PK_ERROR_ENUM_INTERNAL_ERROR,
+				"%s", ex.asUserString().c_str());
+	}
+
+	delete data;
+}
+
+/**
+ * Wrapper function that takes care of catching C++ exceptions for us if
+ * they are not caught somewhere more specific in the call stack. A C++
+ * exception thrown over the PackageKit backend API would lead to an
+ * unconditional abort, possibly corrupting the rpmdb, so we catch it here
+ * and make sure we propagate the exception message to the job as error,
+ * log the error and avoid general crash'n'burn behavior.
+ **/
+static gboolean
+zypp_backend_job_thread_create (PkBackendJob *job, PkBackendJobThreadFunc func,
+		gpointer user_data, GDestroyNotify destroy_func)
+{
+	ZyppBackendThreadWrapperData *data = new ZyppBackendThreadWrapperData(func,
+			user_data, destroy_func);
+	return pk_backend_job_thread_create (job, zypp_backend_job_thread_wrapper,
+			data, destroy_func);
+}
+
 static int64_t
 get_free_disk_space(const char *path)
 {
@@ -2219,7 +2274,7 @@ backend_required_by_thread (PkBackendJob *job, GVariant *params, gpointer user_d
 void
 pk_backend_required_by(PkBackend *backend, PkBackendJob *job, PkBitfield filters, gchar **package_ids, gboolean recursive)
 {
-	pk_backend_job_thread_create (job, backend_required_by_thread, NULL, NULL);
+	zypp_backend_job_thread_create (job, backend_required_by_thread, NULL, NULL);
 }
 
 /**
@@ -2405,7 +2460,7 @@ backend_depends_on_thread (PkBackendJob *job, GVariant *params, gpointer user_da
 void
 pk_backend_depends_on (PkBackend *backend, PkBackendJob *job, PkBitfield filters, gchar **package_ids, gboolean recursive)
 {
-	pk_backend_job_thread_create (job, backend_depends_on_thread, NULL, NULL);
+	zypp_backend_job_thread_create (job, backend_depends_on_thread, NULL, NULL);
 }
 
 static void
@@ -2482,7 +2537,7 @@ backend_get_details_thread (PkBackendJob *job, GVariant *params, gpointer user_d
 void
 pk_backend_get_details (PkBackend *backend, PkBackendJob *job, gchar **package_ids)
 {
-	pk_backend_job_thread_create (job, backend_get_details_thread, NULL, NULL);
+	zypp_backend_job_thread_create (job, backend_get_details_thread, NULL, NULL);
 }
 
 static void
@@ -2537,7 +2592,7 @@ backend_get_details_local_thread (PkBackendJob *job, GVariant *params, gpointer 
 void
 pk_backend_get_details_local (PkBackend *backend, PkBackendJob *job, gchar **full_paths)
 {
-	pk_backend_job_thread_create (job, backend_get_details_local_thread, NULL, NULL);
+	zypp_backend_job_thread_create (job, backend_get_details_local_thread, NULL, NULL);
 }
 
 /**
@@ -2601,7 +2656,7 @@ backend_get_files_local_thread (PkBackendJob *job, GVariant *params, gpointer us
 void
 pk_backend_get_files_local (PkBackend *backend, PkBackendJob *job, gchar **full_paths)
 {
-	pk_backend_job_thread_create (job, backend_get_files_local_thread, NULL, NULL);
+	zypp_backend_job_thread_create (job, backend_get_files_local_thread, NULL, NULL);
 }
 
 static void
@@ -2649,7 +2704,7 @@ backend_get_distro_upgrades_thread(PkBackendJob *job, GVariant *params, gpointer
 void
 pk_backend_get_distro_upgrades (PkBackend *backend, PkBackendJob *job)
 {
-	pk_backend_job_thread_create (job, backend_get_distro_upgrades_thread, NULL, NULL);
+	zypp_backend_job_thread_create (job, backend_get_distro_upgrades_thread, NULL, NULL);
 }
 
 static void
@@ -2668,7 +2723,7 @@ backend_refresh_cache_thread (PkBackendJob *job, GVariant *params, gpointer user
 void
 pk_backend_refresh_cache (PkBackend *backend, PkBackendJob *job, gboolean force)
 {
-	pk_backend_job_thread_create (job, backend_refresh_cache_thread, NULL, NULL);
+	zypp_backend_job_thread_create (job, backend_refresh_cache_thread, NULL, NULL);
 }
 
 /* If a critical self update (see qualifying steps below) is available then only show/install that update first.
@@ -2769,7 +2824,7 @@ backend_get_updates_thread (PkBackendJob *job, GVariant *params, gpointer user_d
 void
 pk_backend_get_updates (PkBackend *backend, PkBackendJob *job, PkBitfield filters)
 {
-	pk_backend_job_thread_create (job, backend_get_updates_thread, NULL, NULL);
+	zypp_backend_job_thread_create (job, backend_get_updates_thread, NULL, NULL);
 }
 
 static void
@@ -2883,7 +2938,7 @@ backend_install_files_thread (PkBackendJob *job, GVariant *params, gpointer user
 void
 pk_backend_install_files (PkBackend *backend, PkBackendJob *job, PkBitfield transaction_flags, gchar **full_paths)
 {
-	pk_backend_job_thread_create (job, backend_install_files_thread, NULL, NULL);
+	zypp_backend_job_thread_create (job, backend_install_files_thread, NULL, NULL);
 }
 
 static void
@@ -2981,7 +3036,7 @@ backend_get_update_detail_thread (PkBackendJob *job, GVariant *params, gpointer 
 void
 pk_backend_get_update_detail (PkBackend *backend, PkBackendJob *job, gchar **package_ids)
 {
-	pk_backend_job_thread_create (job, backend_get_update_detail_thread, NULL, NULL);
+	zypp_backend_job_thread_create (job, backend_get_update_detail_thread, NULL, NULL);
 }
 
 static void
@@ -3140,7 +3195,7 @@ pk_backend_install_packages (PkBackend *backend, PkBackendJob *job, PkBitfield t
 {
 	// For now, don't let the user cancel the install once it's started
 	pk_backend_job_set_allow_cancel (job, FALSE);
-	pk_backend_job_thread_create (job, backend_install_packages_thread, NULL, NULL);
+	zypp_backend_job_thread_create (job, backend_install_packages_thread, NULL, NULL);
 }
 
 
@@ -3161,7 +3216,7 @@ backend_install_signature_thread (PkBackendJob *job, GVariant *params, gpointer 
 void
 pk_backend_install_signature (PkBackend *backend, PkBackendJob *job, PkSigTypeEnum type, const gchar *key_id, const gchar *package_id)
 {
-	pk_backend_job_thread_create (job, backend_install_signature_thread, NULL, NULL);
+	zypp_backend_job_thread_create (job, backend_install_signature_thread, NULL, NULL);
 }
 
 static void
@@ -3247,7 +3302,7 @@ void
 pk_backend_remove_packages (PkBackend *backend, PkBackendJob *job, PkBitfield transaction_flags,
 			    gchar **package_ids, gboolean allow_deps, gboolean autoremove)
 {
-	pk_backend_job_thread_create (job, backend_remove_packages_thread, NULL, NULL);
+	zypp_backend_job_thread_create (job, backend_remove_packages_thread, NULL, NULL);
 }
 
 static void
@@ -3346,7 +3401,7 @@ backend_resolve_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
 void
 pk_backend_resolve (PkBackend *backend, PkBackendJob *job, PkBitfield filters, gchar **package_ids)
 {
-	pk_backend_job_thread_create (job, backend_resolve_thread, NULL, NULL);
+	zypp_backend_job_thread_create (job, backend_resolve_thread, NULL, NULL);
 }
 
 static void
@@ -3436,13 +3491,13 @@ backend_find_packages_thread (PkBackendJob *job, GVariant *params, gpointer user
 void
 pk_backend_search_names (PkBackend *backend, PkBackendJob *job, PkBitfield filters, gchar **values)
 {
-	pk_backend_job_thread_create (job, backend_find_packages_thread, NULL, NULL);
+	zypp_backend_job_thread_create (job, backend_find_packages_thread, NULL, NULL);
 }
 
 void
 pk_backend_search_details (PkBackend *backend, PkBackendJob *job, PkBitfield filters, gchar **values)
 {
-	pk_backend_job_thread_create (job, backend_find_packages_thread, NULL, NULL);
+	zypp_backend_job_thread_create (job, backend_find_packages_thread, NULL, NULL);
 }
 
 static void
@@ -3499,13 +3554,13 @@ backend_search_group_thread (PkBackendJob *job, GVariant *params, gpointer user_
 void
 pk_backend_search_groups (PkBackend *backend, PkBackendJob *job, PkBitfield filters, gchar **values)
 {
-	pk_backend_job_thread_create (job, backend_search_group_thread, NULL, NULL);
+	zypp_backend_job_thread_create (job, backend_search_group_thread, NULL, NULL);
 }
 
 void
 pk_backend_search_files (PkBackend *backend, PkBackendJob *job, PkBitfield filters, gchar **values)
 {
-	pk_backend_job_thread_create (job, backend_find_packages_thread, NULL, NULL);
+	zypp_backend_job_thread_create (job, backend_find_packages_thread, NULL, NULL);
 }
 
 void
@@ -3655,7 +3710,7 @@ backend_get_files_thread (PkBackendJob *job, GVariant *params, gpointer user_dat
 void
 pk_backend_get_files(PkBackend *backend, PkBackendJob *job, gchar **package_ids)
 {
-	pk_backend_job_thread_create (job, backend_get_files_thread, NULL, NULL);
+	zypp_backend_job_thread_create (job, backend_get_files_thread, NULL, NULL);
 }
 
 static void
@@ -3696,7 +3751,7 @@ backend_get_packages_thread (PkBackendJob *job, GVariant *params, gpointer user_
 void
 pk_backend_get_packages (PkBackend *backend, PkBackendJob *job, PkBitfield filter)
 {
-	pk_backend_job_thread_create (job, backend_get_packages_thread, NULL, NULL);
+	zypp_backend_job_thread_create (job, backend_get_packages_thread, NULL, NULL);
 }
 
 static void
@@ -3778,7 +3833,7 @@ backend_update_packages_thread (PkBackendJob *job, GVariant *params, gpointer us
 void
 pk_backend_update_packages (PkBackend *backend, PkBackendJob *job, PkBitfield transaction_flags, gchar **package_ids)
 {
-	pk_backend_job_thread_create (job, backend_update_packages_thread, NULL, NULL);
+	zypp_backend_job_thread_create (job, backend_update_packages_thread, NULL, NULL);
 }
 
 static void
@@ -3888,7 +3943,7 @@ pk_backend_upgrade_system (PkBackend *backend,
 			   const gchar *distro_id,
 			   PkUpgradeKindEnum upgrade_kind)
 {
-   pk_backend_job_thread_create (job, backend_upgrade_system_thread, NULL, NULL);
+   zypp_backend_job_thread_create (job, backend_upgrade_system_thread, NULL, NULL);
 }
 
 static void
@@ -4022,7 +4077,7 @@ backend_repo_set_data_thread (PkBackendJob *job, GVariant *params, gpointer user
 void
 pk_backend_repo_set_data (PkBackend *backend, PkBackendJob *job, const gchar *repo_id, const gchar *parameter, const gchar *value)
 {
-	pk_backend_job_thread_create (job, backend_repo_set_data_thread, NULL, NULL);
+	zypp_backend_job_thread_create (job, backend_repo_set_data_thread, NULL, NULL);
 }
 
 /**
@@ -4153,7 +4208,7 @@ backend_what_provides_thread (PkBackendJob *job, GVariant *params, gpointer user
 void
 pk_backend_what_provides (PkBackend *backend, PkBackendJob *job, PkBitfield filters, gchar **values)
 {
-	pk_backend_job_thread_create (job, backend_what_provides_thread, NULL, NULL);
+	zypp_backend_job_thread_create (job, backend_what_provides_thread, NULL, NULL);
 }
 
 gchar **
@@ -4245,7 +4300,7 @@ backend_download_packages_thread (PkBackendJob *job, GVariant *params, gpointer 
 void
 pk_backend_download_packages (PkBackend *backend, PkBackendJob *job, gchar **package_ids, const gchar *directory)
 {
-	pk_backend_job_thread_create (job, backend_download_packages_thread, NULL, NULL);
+	zypp_backend_job_thread_create (job, backend_download_packages_thread, NULL, NULL);
 }
 
 void
