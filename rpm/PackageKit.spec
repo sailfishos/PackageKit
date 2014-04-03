@@ -20,6 +20,7 @@ Group:     System/Libraries
 URL:       http://www.packagekit.org
 Source0:   http://www.packagekit.org/releases/%{name}-%{version}.tar.gz
 Source100: rpm-db-clean.service
+Source101: pk-rpm-db-clean
 
 Requires: PackageKit-zypp = %{version}-%{release}
 Requires: shared-mime-info
@@ -241,8 +242,9 @@ sed -i \
     -e 's#^\(UseNetworkConnman=\).*$#\1true#g' \
     ${RPM_BUILD_ROOT}%{_sysconfdir}/PackageKit/PackageKit.conf
 
-# install cleanup service file
+# install cleanup service files
 install -D -m 644 %{S:100} %{buildroot}%{_unitdir}/rpm-db-clean.service
+install -D -m 755 %{S:101} %{buildroot}%{_libexecdir}/pk-rpm-db-clean
 
 %find_lang %name
 
@@ -310,6 +312,7 @@ update-mime-database %{_datadir}/mime &> /dev/null || :
 %defattr(-,root,root,-)
 %doc README AUTHORS  COPYING
 %{_libdir}/packagekit-backend/libpk_backend_zypp.so
+%{_libexecdir}/pk-rpm-db-clean
 %{_unitdir}/rpm-db-clean.service
 
 %files glib
