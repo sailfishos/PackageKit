@@ -241,6 +241,25 @@ public:
 };
 
 static void
+zypp_schedule_rpmdb_rebuild()
+{
+	const char *PK_ZYPP_REBUILDDB_ON_BOOT =
+		"/var/lib/PackageKit/scheduled-rebuilddb";
+
+	LOG << "Scheduled rpmdb rebuild on next reboot" << std::endl;
+
+	// Touch the the rebuilddb schedule file, so that the init
+	// script will pick it up and rebuild the rpmdb on next boot
+	FILE *fp = fopen(PK_ZYPP_REBUILDDB_ON_BOOT, "w");
+	if (!fp) {
+		ERR << "Could not create " << PK_ZYPP_REBUILDDB_ON_BOOT << std::endl;
+		return;
+	}
+
+	fclose(fp);
+}
+
+static void
 zypp_backend_job_thread_wrapper (PkBackendJob *job, GVariant *params,
 		gpointer user_data)
 {
@@ -253,6 +272,7 @@ zypp_backend_job_thread_wrapper (PkBackendJob *job, GVariant *params,
 		ERR << "C++ exception in zypp backend job: " << ex.asUserString () << std::endl;
 		pk_backend_job_error_code (job, PK_ERROR_ENUM_INTERNAL_ERROR,
 				"%s", ex.asUserString().c_str());
+		zypp_schedule_rpmdb_rebuild();
 	}
 
 	delete data;
@@ -849,6 +869,7 @@ static bool
 zypp_handle_broken_rpmdb (ZYpp::Ptr zypp, const Exception &e)
 {
 	LOG << "Exception while initializing target (RPM DB broken?): %s" << e.asUserString().c_str() << std::endl;
+	zypp_schedule_rpmdb_rebuild();
 
 	if (system("/usr/bin/db_recover -h /var/lib/rpm") == EXIT_SUCCESS) {
 		LOG << "RPM DB recovery successful." << std::endl;
