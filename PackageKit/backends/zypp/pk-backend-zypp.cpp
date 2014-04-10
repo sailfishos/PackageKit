@@ -230,6 +230,25 @@ public:
 };
 
 static void
+zypp_schedule_rpmdb_rebuild()
+{
+	const char *PK_ZYPP_REBUILDDB_ON_BOOT =
+		"/var/lib/PackageKit/scheduled-rebuilddb";
+
+	PK_ZYPP_LOG("Scheduled rpmdb rebuild on next reboot");
+
+	// Touch the the rebuilddb schedule file, so that the init
+	// script will pick it up and rebuild the rpmdb on next boot
+	FILE *fp = fopen(PK_ZYPP_REBUILDDB_ON_BOOT, "w");
+	if (!fp) {
+		PK_ZYPP_LOG("Could not create %s", PK_ZYPP_REBUILDDB_ON_BOOT);
+		return;
+	}
+
+	fclose(fp);
+}
+
+static void
 zypp_backend_job_thread_wrapper (PkBackendJob *job, GVariant *params,
 		gpointer user_data)
 {
@@ -244,6 +263,7 @@ zypp_backend_job_thread_wrapper (PkBackendJob *job, GVariant *params,
 		pk_backend_job_error_code (job, PK_ERROR_ENUM_INTERNAL_ERROR,
 				ex.asUserString().c_str());
 		pk_backend_job_finished (job);
+		zypp_schedule_rpmdb_rebuild();
 	}
 
 	delete data;
@@ -823,6 +843,7 @@ static bool
 zypp_handle_broken_rpmdb (ZYpp::Ptr zypp, const Exception &e)
 {
 	PK_ZYPP_LOG("Exception while initializing target (RPM DB broken?): %s", e.asUserString().c_str());
+	zypp_schedule_rpmdb_rebuild();
 
 	if (system("/usr/bin/db_recover -h /var/lib/rpm") == EXIT_SUCCESS) {
 		PK_ZYPP_LOG("RPM DB recovery successful.");
@@ -839,9 +860,7 @@ zypp_handle_broken_rpmdb (ZYpp::Ptr zypp, const Exception &e)
 	}
 	else {
 		PK_ZYPP_LOG("RPM DB recovery failed.");
-		// TODO should we fork and do rm -f /var/lib/rpm/__db*; rpm --rebuilddb here?
 		return false;
-
 	}
 }
 
