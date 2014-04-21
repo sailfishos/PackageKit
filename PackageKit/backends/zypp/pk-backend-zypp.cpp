@@ -1339,8 +1339,8 @@ zypp_refresh_meta_and_cache (RepoManager &manager, RepoInfo &repo, bool force = 
 static gboolean
 system_and_package_are_x86 (Arch arch)
 {
-	// i586, i686, ... all should be considered the same arch for our comparison
-	return ( arch == Arch_i586 && ZConfig::defaultSystemArchitecture() == Arch_i686 );
+	// i486, i586, i686, ... all should be considered the same arch for our comparison
+	return ((arch == Arch_i486 || arch == Arch_i586 ) && ZConfig::defaultSystemArchitecture() == Arch_i686 );
 }
 
 static gboolean
