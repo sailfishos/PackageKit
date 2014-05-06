@@ -125,11 +125,25 @@ typedef enum {
         EQUAL_VERSION
 } VersionRelation;
 
+class PkZyppCancelledException : public std::runtime_error {
+public:
+	PkZyppCancelledException(const char *message)
+		: std::runtime_error(message)
+	{
+	}
+};
+
 class ZyppJob {
  public:
 	ZyppJob(PkBackendJob *job);
 	~ZyppJob();
 	zypp::ZYpp::Ptr get_zypp();
+
+	void cancel();
+	bool isCancelled();
+ private:
+	PkBackendJob *job;
+	GCancellable *cancellable;
 };
 
 enum PkgSearchType {
@@ -312,6 +326,8 @@ namespace ZyppBackend
 {
 class PkBackendZYppPrivate;
 static PkBackendZYppPrivate *priv = 0;
+
+bool currentJobIsCancelled();
 
 // FIXME: should merge with _dl_progress / _dl_count
 /* Overall progress update helpers */
@@ -527,6 +543,11 @@ struct DownloadProgressReportReceiver : public zypp::callback::ReceiveReport<zyp
 
 	virtual bool progress (int value, zypp::Resolvable::constPtr resolvable)
 	{
+		if (currentJobIsCancelled()) {
+			throw PkZyppCancelledException("Download was cancelled");
+			return false; // Not reached
+		}
+
 		//MIL << resolvable << " " << value << " " << _package_id << std::endl;
 		update_sub_percentage (value, PK_STATUS_ENUM_DOWNLOAD);
 		//pk_backend_job_set_speed (_job, static_cast<guint>(dbps_current));
@@ -817,6 +838,17 @@ class PkBackendZYppPrivate {
 	ExecCounters exec;
 };
 
+bool currentJobIsCancelled()
+{
+	if (priv->currentJob) {
+		gpointer user_data = pk_backend_job_get_user_data (priv->currentJob);
+		ZyppJob *zjob = static_cast<ZyppJob *> (user_data);
+		return zjob && zjob->isCancelled();
+	}
+
+	return false;
+}
+
 void zypp_backend_download_finished(PkBackendJob *job)
 {
 	priv->exec.setPhase(DOWNLOADING_PACKAGES);
@@ -843,6 +875,8 @@ void zypp_backend_removal_finished(PkBackendJob *job)
 using namespace ZyppBackend;
 
 ZyppJob::ZyppJob(PkBackendJob *job)
+	: job(job)
+	, cancellable(g_cancellable_new())
 {
 	MIL << "locking zypp" << std::endl;
 	pthread_mutex_lock(&priv->zypp_mutex);
@@ -851,6 +885,7 @@ ZyppJob::ZyppJob(PkBackendJob *job)
 		MIL << "currentjob is already defined - highly impossible" << std::endl;
 	}
 
+	pk_backend_job_set_user_data (job, this);
 	pk_backend_job_set_locked(job, true);
 	priv->currentJob = job;
 	priv->eventDirector.setJob(job);
@@ -858,12 +893,27 @@ ZyppJob::ZyppJob(PkBackendJob *job)
 
 ZyppJob::~ZyppJob()
 {
-	if (priv->currentJob)
-		pk_backend_job_set_locked(priv->currentJob, false);
+	pk_backend_job_set_locked (job, false);
+	pk_backend_job_set_user_data (job, 0);
+	g_object_unref (cancellable);
+
 	priv->currentJob = 0;
 	priv->eventDirector.setJob(0);
 	MIL << "unlocking zypp" << std::endl;
 	pthread_mutex_unlock(&priv->zypp_mutex);
+}
+
+void
+ZyppJob::cancel()
+{
+	/* try to cancel the transaction */
+	g_cancellable_cancel (cancellable);
+}
+
+bool
+ZyppJob::isCancelled()
+{
+	return g_cancellable_is_cancelled (cancellable);
 }
 
 static bool
@@ -3219,6 +3269,21 @@ pk_backend_install_packages (PkBackend *backend, PkBackendJob *job, PkBitfield t
 	zypp_backend_job_thread_create (job, backend_install_packages_thread, NULL, NULL);
 }
 
+/**
+ * pk_backend_cancel:
+ **/
+void
+pk_backend_cancel (PkBackend *backend, PkBackendJob *job)
+{
+	ZyppJob *zjob = static_cast<ZyppJob *>(pk_backend_job_get_user_data (job));
+
+	if (zjob) {
+		LOG << "Cancelling job" << std::endl;
+		zjob->cancel();
+	} else {
+		LOG << "No ZyppJob to cancel" << std::endl;
+	}
+}
 
 static void
 backend_install_signature_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
@@ -3949,7 +4014,15 @@ backend_upgrade_system_thread (PkBackendJob *job,
 
 	PoolStatusSaver saver;
 
-	zypp_perform_execution (job, zypp, UPGRADE_SYSTEM, TRUE, transaction_flags);
+	try {
+		zypp_perform_execution (job, zypp, UPGRADE_SYSTEM, TRUE, transaction_flags);
+	} catch (const PkZyppCancelledException &ex) {
+		LOG << "Transaction was cancelled: " << ex.what() << std::endl;
+		pk_backend_job_error_code (job,
+				PK_ERROR_ENUM_TRANSACTION_CANCELLED,
+				"%s", ex.what());
+		pk_backend_job_finished (job);
+	}
 
 	zypp->resolver ()->setUpgradeMode (FALSE);
 }
