@@ -2133,6 +2133,11 @@ zypp_refresh_cache (PkBackendJob *job, ZYpp::Ptr zypp, gboolean force)
 	for (list <RepoInfo>::iterator it = repos.begin(); it != repos.end(); ++it, i++) {
 		RepoInfo repo (*it);
 
+		if (currentJobIsCancelled()) {
+			LOG << "Aborting refresh, as job is cancelled" << std::endl;
+			return FALSE;
+		}
+
 		if (!zypp_is_valid_repo (job, repo))
 			return FALSE;
 		if (pk_backend_job_get_is_error_set (job))
@@ -2784,11 +2789,16 @@ backend_refresh_cache_thread (PkBackendJob *job, GVariant *params, gpointer user
 	ZyppJob zjob(job);
 	ZYpp::Ptr zypp = zjob.get_zypp();
 
-	if (zypp == NULL){
-		return;
-	}
+	if (zypp) {
+		zypp_refresh_cache (job, zypp, TRUE);
 
-	zypp_refresh_cache (job, zypp, TRUE);
+		if (zjob.isCancelled()) {
+			LOG << "Package refresh was cancelled on user request" << std::endl;
+			pk_backend_job_error_code (job,
+					PK_ERROR_ENUM_TRANSACTION_CANCELLED,
+					"Refresh was cancelled");
+		}
+	}
 }
 
 void
