@@ -1,9 +1,10 @@
+# Conditional building of X11 related things
+%bcond_with X11
+
 %define glib2_version           2.20.0
 %define dbus_version            1.1.3
 %define dbus_glib_version       0.74
 %define policykit_version       0.92
-
-%define docs_files %{name}/README %{name}/AUTHORS %{name}/COPYING
 
 # Vendor-specific values displayed in PackageKit user interfaces
 %define vendor_name             Mer
@@ -29,6 +30,10 @@ BuildRequires: glib2-devel >= %{glib2_version}
 BuildRequires: dbus-devel  >= %{dbus_version}
 BuildRequires: dbus-glib-devel >= %{dbus_glib_version}
 BuildRequires: pam-devel
+%if %{with X11}
+BuildRequires: libX11-devel
+BuildRequires: pango-devel
+%endif
 BuildRequires: sqlite-devel
 BuildRequires: connman-devel
 BuildRequires: polkit-devel >= %{policykit_version}
@@ -183,8 +188,6 @@ find -name Makefile.in -exec touch '{}' \;
 mkdir -p hack; ln -sf /bin/true hack/aclocal-1.13
 export PATH=$PATH:`pwd`/hack
 export LIBS=-ldbus-glib-1
-
-cd %{name}
 %configure \
         --disable-static \
         --disable-dummy \
@@ -197,6 +200,9 @@ cd %{name}
         --disable-gtk-doc-html \
         --disable-man-pages \
         --disable-tests \
+%if %{with X11}
+        --enable-browser-plugin \
+%endif
         --disable-bash_completion
 
 make %{?_smp_mflags}
@@ -204,8 +210,9 @@ make %{?_smp_mflags}
 %install
 
 export PATH=$PATH:`pwd`/hack
-cd %{name}
 %make_install
+
+touch $RPM_BUILD_ROOT%{_localstatedir}/cache/PackageKit/groups.sqlite
 
 # create a link that GStreamer will recognise
 pushd ${RPM_BUILD_ROOT}%{_libexecdir} > /dev/null
@@ -257,9 +264,9 @@ update-mime-database %{_datadir}/mime &> /dev/null || :
 %preun zypp
 %systemd_preun rpm-db-clean.service
 
-%files -f %{name}/%{name}.lang
+%files -f %{name}.lang
 %defattr(-,root,root,-)
-%doc %{docs_files}
+%doc README AUTHORS  COPYING
 %dir %{_datadir}/PackageKit
 %dir %{_datadir}/PackageKit/helpers
 %dir %{_sysconfdir}/PackageKit
@@ -269,7 +276,7 @@ update-mime-database %{_datadir}/mime &> /dev/null || :
 %{_sysconfdir}/PackageKit/events/*.d/README
 %dir %{_localstatedir}/lib/PackageKit
 %dir %{_localstatedir}/cache/PackageKit
-%ghost %attr(0644,root,root) %{_localstatedir}/cache/PackageKit/groups.sqlite
+%ghost %verify(not md5 size mtime) %{_localstatedir}/cache/PackageKit/groups.sqlite
 %dir %{_localstatedir}/cache/PackageKit/downloads
 %dir %{_libdir}/packagekit-backend
 %config(noreplace) %{_sysconfdir}/PackageKit/*.conf
@@ -298,59 +305,59 @@ update-mime-database %{_datadir}/mime &> /dev/null || :
 
 %files docs
 %defattr(-,root,root,-)
-%doc %{docs_files}
+%doc README AUTHORS  COPYING
 #%{_mandir}/man1/*
 
 %files zypp
 %defattr(-,root,root,-)
-%doc %{docs_files}
+%doc README AUTHORS  COPYING
 %{_libdir}/packagekit-backend/libpk_backend_zypp.so
 %{_libexecdir}/pk-rpm-db-clean
 %{_unitdir}/rpm-db-clean.service
 
 %files glib
 %defattr(-,root,root,-)
-%doc %{docs_files}
+%doc README AUTHORS  COPYING
 %{_libdir}/*packagekit-glib*.so.*
 
 %files python
 %defattr(-,root,root,-)
-%doc %{docs_files}
+%doc README AUTHORS  COPYING
 %dir %{python_sitelib}/packagekit
 %{python_sitelib}/packagekit/*py*
 
 %files cron
 %defattr(-,root,root,-)
-%doc %{docs_files}
+%doc README AUTHORS  COPYING
 %config %{_sysconfdir}/cron.daily/packagekit-background.cron
 %config(noreplace) %{_sysconfdir}/sysconfig/packagekit-background
 
 %files debug-install
 %defattr(-,root,root,-)
-%doc %{docs_files}
+%doc README AUTHORS  COPYING
 %{_bindir}/pk-debuginfo-install
 
 %files gstreamer-plugin
 %defattr(-,root,root,-)
-%doc %{docs_files}
+%doc README AUTHORS  COPYING
 %{_libexecdir}/pk-gstreamer-install
 %{_libexecdir}/gst-install-plugins-helper
 
 %files command-not-found
 %defattr(-,root,root,-)
-%doc %{docs_files}
+%doc README AUTHORS  COPYING
 %{_sysconfdir}/profile.d/*
 %{_libexecdir}/pk-command-not-found
 %config(noreplace) %{_sysconfdir}/PackageKit/CommandNotFound.conf
 
 %files device-rebind
 %defattr(-,root,root,-)
-%doc %{docs_files}
+%doc README AUTHORS  COPYING
 %{_sbindir}/pk-device-rebind
 
 %files glib-devel
 %defattr(-,root,root,-)
-%doc %{docs_files}
+%doc README AUTHORS  COPYING
 %{_libdir}/libpackagekit-glib*.so
 %{_libdir}/pkgconfig/packagekit-glib2.pc
 %dir %{_includedir}/PackageKit
@@ -359,7 +366,7 @@ update-mime-database %{_datadir}/mime &> /dev/null || :
 
 %files plugin-devel
 %defattr(-,root,root,-)
-%doc %{docs_files}
+%doc README AUTHORS  COPYING
 %dir %{_includedir}/PackageKit
 %{_includedir}/PackageKit/plugin/*.h
 %{_libdir}/pkgconfig/packagekit-plugin.pc
