@@ -184,7 +184,7 @@ mkdir -p hack; ln -sf /bin/true hack/aclocal-1.13
 export PATH=$PATH:`pwd`/hack
 export LIBS=-ldbus-glib-1
 
-[ ! -d %{name} ] || cd %{name}
+cd %{name}
 %configure \
         --disable-static \
         --disable-dummy \
@@ -204,7 +204,7 @@ make %{?_smp_mflags}
 %install
 
 export PATH=$PATH:`pwd`/hack
-[ ! -d %{name} ] || cd %{name}
+cd %{name}
 %make_install
 
 # create a link that GStreamer will recognise
