@@ -3549,7 +3549,9 @@ backend_find_packages_thread (PkBackendJob *job, GVariant *params, gpointer user
 	vector<sat::Solvable> v;
 
 	PoolQuery q;
-	q.addString( search ); // may be called multiple times (OR'ed)
+	Capability cap (search);
+	std::string name = cap.detail().name().asString();
+	q.addString( name ); // may be called multiple times (OR'ed)
 	q.setCaseSensitive( false ); // [<>] We want to be case insensitive for the name and description searches...
 	q.setMatchSubstring();
 
@@ -3560,6 +3562,14 @@ backend_find_packages_thread (PkBackendJob *job, GVariant *params, gpointer user
 		q.addKind( ResKind::pattern );
 		q.addKind( ResKind::srcpackage );
 		q.addAttribute( sat::SolvAttr::name );
+
+		// Search also Provides: to allow querying for "debuginfo(build-id)=<hash>"
+		q.addDependency( sat::SolvAttr::provides,
+				 name,
+				 cap.detail().op(),
+				 cap.detail().ed(),
+				 Arch(cap.detail().arch()) );
+
 		// Note: The query result is NOT sorted packages first, then srcpackage.
 		// If that's necessary you need to sort the vector accordongly or use
 		// two separate queries.
