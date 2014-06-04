@@ -2847,10 +2847,10 @@ pk_transaction_builtin_policy_allow (guint pid)
 		"/usr/bin/store-client",
 
 		// For devel dist upgrading
-		"/usr/bin/devel-dist-upgrade",
+		"/usr/bin/rnd-dist-upgrade",
 
 		// For deploying RPMs from the SDK
-		"/usr/bin/devel-deploy-rpm",
+		"/usr/bin/sdk-deploy-rpm",
 
 		NULL,
 	};
