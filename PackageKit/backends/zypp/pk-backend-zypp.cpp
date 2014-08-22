@@ -1859,12 +1859,11 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo
 				priv->exec.total_downloads += 1;
 				// TODO: Only count download bytes if updates were not yet downloaded
 				total_download_bytes += it->resolvable()->downloadSize();
-			} else if (it->status().isToBeUninstalled() &&
-					!it->status().isToBeUninstalledDueToUpgrade()) {
-				if (!only_download) {
+			} else if (!only_download && it->status().isToBeUninstalled()) {
+				if (!it->status().isToBeUninstalledDueToUpgrade()) {
 					priv->exec.total_removals += 1;
-					total_remove_bytes += it->resolvable()->installSize();
 				}
+				total_remove_bytes += it->resolvable()->installSize();
 			}
 		}
 
