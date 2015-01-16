@@ -751,7 +751,10 @@ struct ExecCounters {
 			current = total;
 		}
 
-		int percentage = 100 * current / total;
+		int percentage = -1;
+		if (total != 0) {
+			percentage = 100 * current / total;
+		}
 
 		if (last_percentage > percentage) {
 			/**
