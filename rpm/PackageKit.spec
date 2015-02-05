@@ -174,19 +174,22 @@ user to restart the computer or remove and re-insert the device.
 %setup -q -n %{name}-%{version}/PackageKit
 
 %build
-# make sure Makefile.in is newer then the other autoshit droplets
-# because auto* is a fucking big mess and will leave you in knee
-# deep puddle of diarrhea otherwise.
-sleep 1
-find -name Makefile.in -exec touch '{}' \;
 
-# for some obscure reason autoshit decided that it needs to regenerate
-# stuff, despite the touch orgy. We can't really regenerate it due to
-# the crapton of dependencies we'd need to package just for the sake
-# of regenerating configure, but fortunately auto* seems to be perfectly
-# happy of calling /bin/true masked as aclocal-1.13
-mkdir -p hack; ln -sf /bin/true hack/aclocal-1.13
-export PATH=$PATH:`pwd`/hack
+# Fix autotools-related issues with Git checkout timestamps, adapted from:
+# http://www.gnu.org/software/automake/manual/html_node/CVS.html#All-Files-in-CVS
+# (see also: http://stackoverflow.com/questions/934051)
+for aclocal_file in $(find . -type f -a -name aclocal.m4); do
+    (
+        cd $(dirname $aclocal_file)
+        sleep 1
+        touch aclocal.m4
+        sleep 1
+        touch configure config.h.in
+        sleep 1
+        find . -name Makefile.in -exec touch '{}' +
+    )
+done
+
 export LIBS=-ldbus-glib-1
 %configure \
         --disable-static \
