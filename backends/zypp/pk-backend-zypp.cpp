@@ -93,6 +93,9 @@
 #include <zypp/target/rpm/librpmDb.h>
 #include <zypp/ui/Selectable.h>
 
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
+
 using namespace std;
 using namespace zypp;
 using zypp::filesystem::PathInfo;
@@ -1869,7 +1872,7 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo
 		}
 
 		ResPool pool = ResPool::instance ();
-		if (pk_bitfield_contain (transaction_flags, PK_TRANSACTION_FLAG_ENUM_SIMULATE)) {
+		if (type != UPGRADE_SYSTEM && pk_bitfield_contain (transaction_flags, PK_TRANSACTION_FLAG_ENUM_SIMULATE)) {
 			ret = TRUE;
 
 			MIL << "simulating" << std::endl;
@@ -1943,6 +1946,8 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo
 		int64_t total_download_bytes = 0;
 		int64_t total_install_bytes = 0;
 		int64_t total_remove_bytes = 0;
+		int64_t total_cached_bytes = 0;
+		int64_t biggest_package_download = 0;
 
 		// Get number of installations and removals for overall progress
 		priv->exec.reset();
@@ -1958,8 +1963,18 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo
 					total_install_bytes += it->resolvable()->installSize();
 				}
 				priv->exec.total_downloads += 1;
-				// TODO: Only count download bytes if updates were not yet downloaded
-				total_download_bytes += it->resolvable()->downloadSize();
+
+				Package::constPtr pkg = asKind<Package>(it->resolvable());
+				if (pkg) {
+					if (pkg->isCached()) {
+						total_cached_bytes += pkg->downloadSize();
+					} else {
+						total_download_bytes += pkg->downloadSize();
+						if (pkg->downloadSize() > biggest_package_download) {
+							biggest_package_download = pkg->downloadSize();
+						}
+					}
+				}
 			} else if (!only_download && it->status().isToBeUninstalled()) {
 				if (!it->status().isToBeUninstalledDueToUpgrade()) {
 					priv->exec.total_removals += 1;
@@ -1972,19 +1987,71 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo
 			<< priv->exec.total_downloads << " downloads, "
 			<< priv->exec.total_installs << " installs, "
 			<< priv->exec.total_removals << " removals" << std::endl;
+		LOG << "Byte sizes: "
+			<< total_download_bytes << " download, "
+			<< total_install_bytes << " install, "
+			<< total_remove_bytes << " remove, "
+			<< total_cached_bytes << " cached" << std::endl;
 
-		int64_t required_space_bytes = (total_download_bytes + total_install_bytes - total_remove_bytes);
-		// XXX: This assumes package downloads also end up in rootfs, and that
-		// installed files will all take up space in the rootfs only
-		int64_t free_space_bytes = get_free_disk_space("/");
-		int64_t remaining_space_bytes = free_space_bytes - required_space_bytes;
+		int64_t required_space_bytes_download = total_download_bytes;
+		int64_t required_space_bytes_installation = (type == UPGRADE_SYSTEM)
+		                ? MAX(0, total_install_bytes - total_remove_bytes)
+		                // it is the worst case if the biggest package gets installed last
+		                : (biggest_package_download + MAX(0, total_install_bytes - total_remove_bytes));
 
-		if (remaining_space_bytes < 0) {
-			// Not enough space
+		// UPGRADE packages are downloaded to the /home partition, but are installed to rootfs
+		int64_t free_space_bytes_download = (type == UPGRADE_SYSTEM) ? get_free_disk_space("/home")
+		                                                             : get_free_disk_space("/");
+		int64_t free_space_bytes_installation = get_free_disk_space("/");
+
+		int64_t remaining_space_bytes_download = free_space_bytes_download - required_space_bytes_download;
+		int64_t remaining_space_bytes_installation = free_space_bytes_installation - required_space_bytes_installation;
+
+		LOG << "Download space "
+			<< "required " << required_space_bytes_download << " bytes, "
+			<< "available " << free_space_bytes_download << " bytes" << std::endl;
+		LOG << "Installation space "
+			<< "required " << required_space_bytes_installation << " bytes, "
+			<< "available " << free_space_bytes_installation << " bytes" << std::endl;
+
+		if (remaining_space_bytes_download < 0) {
+			// Not enough space for download
 			pk_backend_job_error_code (job, PK_ERROR_ENUM_NO_SPACE_ON_DEVICE,
-					"Not enough space. Need %.2f MiB, have %.2f MiB.\n",
-					(float)required_space_bytes / (1024. * 1024),
-					(float)free_space_bytes / (1024. * 1024));
+					"Not enough space for download. Need %.2f MiB, have %.2f MiB.\n",
+					(float)required_space_bytes_download / (1024. * 1024),
+					(float)free_space_bytes_download / (1024. * 1024));
+		}
+
+		// the download size does not add to the size required for installation, because zypp removes each
+		// downloaded package from cache immediately after successful installation
+		if (remaining_space_bytes_installation < 0) {
+			// Not enough space for installation
+			pk_backend_job_error_code (job, PK_ERROR_ENUM_NO_SPACE_ON_DEVICE,
+					"Not enough space for installation. Need %.2f MiB, have %.2f MiB.\n",
+					(float) required_space_bytes_installation / (1024. * 1024),
+					(float) free_space_bytes_installation / (1024. * 1024));
+			goto exit;
+		}
+
+		if (pk_bitfield_contain (transaction_flags, PK_TRANSACTION_FLAG_ENUM_SIMULATE)) {
+			gchar *msg = g_strdup_printf(
+					"DOWNLOAD=%" PRId64 ";"
+					"INSTALL=%" PRId64 ";"
+					"REMOVE=%" PRId64 ";"
+					"CACHED=%" PRId64,
+					total_download_bytes,
+					total_install_bytes,
+					total_remove_bytes,
+					total_cached_bytes);
+			LOG << "Reporting upgrade size: '" << msg << "'" << std::endl;
+			pk_backend_job_error_code (job, PK_ERROR_ENUM_NO_DISTRO_UPGRADE_DATA, "%s\n", msg);
+			g_free(msg);
+
+			LOG << "Simulate requested, resetting status" << std::endl;
+			for (ResPool::const_iterator it = pool.begin (); it != pool.end (); ++it) {
+				it->statusReset ();
+			}
+
 			goto exit;
 		}
 
@@ -3963,6 +4030,12 @@ backend_upgrade_system_thread (PkBackendJob *job,
 	ZYpp::Ptr zypp = zjob.get_zypp ();
 	if (zypp == NULL) {
 		return;
+	}
+
+	if (strstr(distro_id, "nemo::query-size:") == distro_id) {
+		distro_id += strlen("nemo::query-size:");
+		pk_bitfield_add(transaction_flags, PK_TRANSACTION_FLAG_ENUM_SIMULATE);
+		LOG << "Getting size of distro upgrade, with pattern = '" << distro_id << "'" << std::endl;
 	}
 
 	std::string pattern_name = std::string("pattern:") + std::string(distro_id);
