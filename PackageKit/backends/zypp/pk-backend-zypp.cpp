@@ -98,6 +98,9 @@
 #include <zypp/target/rpm/librpmDb.h>
 #include <zypp/ui/Selectable.h>
 
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
+
 using namespace std;
 using namespace zypp;
 using zypp::filesystem::PathInfo;
@@ -1855,6 +1858,7 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo
 		int64_t total_download_bytes = 0;
 		int64_t total_install_bytes = 0;
 		int64_t total_remove_bytes = 0;
+		int64_t total_cached_bytes = 0;
 
 		// Get number of installations and removals for overall progress
 		priv->exec.reset();
@@ -1870,8 +1874,16 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo
 					total_install_bytes += it->resolvable()->installSize();
 				}
 				priv->exec.total_downloads += 1;
-				// TODO: Only count download bytes if updates were not yet downloaded
-				total_download_bytes += it->resolvable()->downloadSize();
+
+				Package::constPtr pkg = asKind<Package>(it->resolvable());
+				if (pkg) {
+					// TODO: Enable once we have upgraded libzypp
+					//if (pkg->isCached()) {
+						//total_cached_bytes += pkg->downloadSize();
+					//} else {
+						total_download_bytes += pkg->downloadSize();
+					//}
+				}
 			} else if (!only_download && it->status().isToBeUninstalled()) {
 				if (!it->status().isToBeUninstalledDueToUpgrade()) {
 					priv->exec.total_removals += 1;
@@ -1882,8 +1894,15 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo
 
 		PK_ZYPP_LOG("Before commit: %d downloads, %d installs, %d removals",
 				priv->exec.total_downloads, priv->exec.total_installs, priv->exec.total_removals);
-		PK_ZYPP_LOG("Byte sizes: %ld download, %ld install, %ld remove",
-				total_download_bytes, total_install_bytes, total_remove_bytes);
+		PK_ZYPP_LOG("Byte sizes: "
+				"%" PRId64 " download, "
+				"%" PRId64 " install, "
+				"%" PRId64 " remove, "
+				"%" PRId64 " cached",
+				total_download_bytes,
+				total_install_bytes,
+				total_remove_bytes,
+				total_cached_bytes);
 
 		int64_t required_space_bytes = (total_download_bytes + total_install_bytes - total_remove_bytes);
 		// XXX: This assumes package downloads also end up in rootfs, and that
@@ -1901,8 +1920,15 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo
 		}
 
 		if (pk_bitfield_contain (transaction_flags, PK_TRANSACTION_FLAG_ENUM_SIMULATE)) {
-			gchar *msg = g_strdup_printf("DOWNLOAD=%ld;INSTALL=%ld;REMOVE=%ld",
-					total_download_bytes, total_install_bytes, total_remove_bytes);
+			gchar *msg = g_strdup_printf(
+					"DOWNLOAD=%" PRId64 ";"
+					"INSTALL=%" PRId64 ";"
+					"REMOVE=%" PRId64 ";"
+					"CACHED=%" PRId64,
+					total_download_bytes,
+					total_install_bytes,
+					total_remove_bytes,
+					total_cached_bytes);
 			PK_ZYPP_LOG("Reporting upgrade size: '%s'", msg);
 			pk_backend_job_error_code (job, PK_ERROR_ENUM_NO_DISTRO_UPGRADE_DATA, "%s\n", msg);
 			g_free(msg);
