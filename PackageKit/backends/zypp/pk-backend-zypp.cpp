@@ -1393,8 +1393,18 @@ zypp_refresh_meta_and_cache (RepoManager &manager, RepoInfo &repo, bool force = 
 static gboolean
 system_and_package_are_x86 (Arch arch)
 {
-	// i486, i586, i686, ... all should be considered the same arch for our comparison
-	return ((arch == Arch_i486 || arch == Arch_i586 ) && ZConfig::defaultSystemArchitecture() == Arch_i686 );
+	const Arch &systemArch = ZConfig::defaultSystemArchitecture();
+
+	// For x86 (32 and 64 bit), the system architectures are backwards-compatible
+	if (systemArch == Arch_i586) {
+		return (arch == Arch_i486);
+	} else if (systemArch == Arch_i686) {
+		return (arch == Arch_i486 || arch == Arch_i586);
+	} else if (systemArch == Arch_x86_64) {
+		return (arch == Arch_i486 || arch == Arch_i586 || arch == Arch_i686);
+	}
+
+	return FALSE;
 }
 
 static gboolean
