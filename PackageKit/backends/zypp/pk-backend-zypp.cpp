@@ -25,6 +25,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#define __STDC_FORMAT_MACROS
+
 #include "config.h"
 
 #include <iterator>
@@ -38,6 +40,7 @@
 #include <string>
 #include <sys/vfs.h>
 #include <unistd.h>
+#include <inttypes.h>
 #include <vector>
 
 #include <systemd/sd-journal.h>
@@ -97,9 +100,6 @@
 #include <zypp/target/rpm/RpmHeader.h>
 #include <zypp/target/rpm/librpmDb.h>
 #include <zypp/ui/Selectable.h>
-
-#define __STDC_FORMAT_MACROS
-#include <inttypes.h>
 
 using namespace std;
 using namespace zypp;
