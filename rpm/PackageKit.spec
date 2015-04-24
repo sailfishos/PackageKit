@@ -21,6 +21,7 @@ URL:       http://www.packagekit.org
 Source0:   http://www.packagekit.org/releases/%{name}-%{version}.tar.gz
 Source100: rpm-db-clean.service
 Source101: pk-rpm-db-clean
+Source102: pk-zypp-cache.conf
 
 Requires: PackageKit-zypp = %{version}-%{release}
 Requires: shared-mime-info
@@ -249,6 +250,9 @@ sed -i \
 install -D -m 644 %{S:100} %{buildroot}%{_unitdir}/rpm-db-clean.service
 install -D -m 755 %{S:101} %{buildroot}%{_libexecdir}/pk-rpm-db-clean
 
+# install dist-upgrade libzypp config file
+install -D -m 644 %{S:102} %{buildroot}%{_sysconfdir}/zypp/pk-zypp-cache.conf
+
 %find_lang %name
 
 %post
@@ -317,6 +321,7 @@ update-mime-database %{_datadir}/mime &> /dev/null || :
 %{_libdir}/packagekit-backend/libpk_backend_zypp.so
 %{_libexecdir}/pk-rpm-db-clean
 %{_unitdir}/rpm-db-clean.service
+%config %{_sysconfdir}/zypp/pk-zypp-cache.conf
 
 %files glib
 %defattr(-,root,root,-)
