@@ -256,7 +256,7 @@ install -D -m 644 %{S:102} %{buildroot}%{_sysconfdir}/zypp/pk-zypp-cache.conf
 # add hardcoded arch entry to pk-zypp-cache.conf (JB#28277)
 # needed only for armv7hl-on-armv7l kernel
 %ifarch armv7hl
-echo "arch = %{arch}" >>%{buildroot}%{_sysconfdir}/zypp/pk-zypp-cache.conf
+echo "arch = "%{arch} >>%{buildroot}%{_sysconfdir}/zypp/pk-zypp-cache.conf
 %endif
 
 %find_lang %name
