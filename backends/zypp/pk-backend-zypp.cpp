@@ -4194,6 +4194,7 @@ backend_upgrade_system_thread (PkBackendJob *job,
 	PkUpgradeKindEnum upgrade_kind = PK_UPGRADE_KIND_ENUM_UNKNOWN;
 	const gchar *distro_id = NULL;
 	bool install_pattern = false;
+	bool do_refresh = FALSE;
 
 	ZyppJob zjob (job);
 	set<PoolItem> candidates;
@@ -4212,10 +4213,10 @@ backend_upgrade_system_thread (PkBackendJob *job,
 		distro_id += strlen("nemo::query-size:");
 		pk_bitfield_add(transaction_flags, PK_TRANSACTION_FLAG_ENUM_SIMULATE);
 		LOG << "Getting size of distro upgrade, with pattern = '" << distro_id << "'" << std::endl;
+		do_refresh = TRUE;
 	}
 
 	std::string pattern_name = std::string("pattern:") + std::string(distro_id);
-	gboolean do_refresh = upgrade_kind == PK_UPGRADE_KIND_ENUM_MINIMAL;
 
 	/**
 	 * Possible values for upgrade_kind:
@@ -4236,6 +4237,7 @@ backend_upgrade_system_thread (PkBackendJob *job,
 					PK_TRANSACTION_FLAG_ENUM_ONLY_DOWNLOAD);
 			// Also try downloading dependencies of the pattern
 			install_pattern = true;
+			do_refresh = TRUE;
 			break;
 		case PK_UPGRADE_KIND_ENUM_COMPLETE:
 			MIL << "Installing upgrades and " << pattern_name << std::endl;
