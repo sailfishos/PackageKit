@@ -4343,9 +4343,12 @@ backend_upgrade_system_thread (PkBackendJob *job, GVariant *params, gpointer use
 
 	gchar *id = parameters->distro_id;
 
+	gboolean do_refresh = false;
+
 	if (strstr(id, "nemo::query-size:") == id) {
 		id += strlen("nemo::query-size:");
 		pk_bitfield_add(transaction_flags, PK_TRANSACTION_FLAG_ENUM_SIMULATE);
+		do_refresh = true;
 		PK_ZYPP_LOG("Getting size of distro upgrade, with pattern = '%s'", id);
 	}
 
@@ -4371,6 +4374,7 @@ backend_upgrade_system_thread (PkBackendJob *job, GVariant *params, gpointer use
 					PK_TRANSACTION_FLAG_ENUM_ONLY_DOWNLOAD);
 			// Also try downloading dependencies of the pattern
 			install_pattern = true;
+			do_refresh = true;
 			break;
 		case PK_UPGRADE_KIND_ENUM_COMPLETE:
 			//MIL << "Installing upgrades and " << pattern_name << std::endl;
@@ -4381,7 +4385,6 @@ backend_upgrade_system_thread (PkBackendJob *job, GVariant *params, gpointer use
 			//MIL << "Downloading and installing upgrades" << std::endl;
 			break;
 	}
-	gboolean do_refresh = (parameters->upgrade_kind == PK_UPGRADE_KIND_ENUM_MINIMAL);
 	delete parameters;
 
 	ZyppJob zjob(job);
