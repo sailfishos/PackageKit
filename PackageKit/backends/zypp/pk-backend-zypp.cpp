@@ -229,7 +229,7 @@ static gboolean
 zypp_set_dist_upgrade_mode (gboolean dist_upgrade_mode)
 {
 	const char *target_path = "/var/cache/pk-zypp-cache";
-	const char *path = dist_upgrade_mode ? "/var/cache/pk-zypp-dist-upgrade"
+	const char *path = dist_upgrade_mode ? "/home/.pk-zypp-dist-upgrade-cache"
 		: "/var/cache/zypp";
 
 	char tmp[PATH_MAX];
