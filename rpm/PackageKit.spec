@@ -22,6 +22,7 @@ Source0:   http://www.packagekit.org/releases/%{name}-%{version}.tar.gz
 Source100: rpm-db-clean.service
 Source101: pk-rpm-db-clean
 Source102: pk-zypp-cache.conf
+Source103: pk-zypp-nemo-remove-old-cache
 
 Requires: PackageKit-zypp = %{version}-%{release}
 Requires: shared-mime-info
@@ -63,6 +64,8 @@ cross-architecture API.
 %package zypp
 Summary: PackageKit zypp backend
 Group: System/Libraries
+%{_oneshot_requires_post}
+Requires: oneshot
 Requires: libzypp >= 5.20.0
 Requires: %{name} = %{version}-%{release}
 
@@ -253,6 +256,9 @@ install -D -m 755 %{S:101} %{buildroot}%{_libexecdir}/pk-rpm-db-clean
 # install dist-upgrade libzypp config file
 install -D -m 644 %{S:102} %{buildroot}%{_sysconfdir}/zypp/pk-zypp-cache.conf
 
+# install the old cache dir cleanup oneshot script
+install -D -m 755 %{S:103} %{buildroot}%{_libdir}/oneshot.d/pk-zypp-nemo-remove-old-cache
+
 mkdir -p %{buildroot}/home/.pk-zypp-dist-upgrade-cache
 
 # add hardcoded arch entry to pk-zypp-cache.conf (JB#28277)
@@ -275,6 +281,7 @@ update-mime-database %{_datadir}/mime &> /dev/null || :
 
 %post zypp
 /bin/systemctl preset rpm-db-clean.service >/dev/null 2>&1 || :
+%{_bindir}/add-oneshot pk-zypp-nemo-remove-old-cache
 
 %preun zypp
 %systemd_preun rpm-db-clean.service
@@ -331,6 +338,7 @@ update-mime-database %{_datadir}/mime &> /dev/null || :
 %{_unitdir}/rpm-db-clean.service
 %config %{_sysconfdir}/zypp/pk-zypp-cache.conf
 %dir /home/.pk-zypp-dist-upgrade-cache
+%{_libdir}/oneshot.d/pk-zypp-nemo-remove-old-cache
 
 %files glib
 %defattr(-,root,root,-)
