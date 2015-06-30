@@ -259,8 +259,6 @@ install -D -m 644 %{S:102} %{buildroot}%{_sysconfdir}/zypp/pk-zypp-cache.conf
 # install the old cache dir cleanup oneshot script
 install -D -m 755 %{S:103} %{buildroot}%{_libdir}/oneshot.d/pk-zypp-nemo-remove-old-cache
 
-mkdir -p %{buildroot}/home/.pk-zypp-dist-upgrade-cache
-
 # add hardcoded arch entry to pk-zypp-cache.conf (JB#28277)
 # needed only for armv7hl-on-armv7l kernel
 %ifarch armv7hl
@@ -337,7 +335,6 @@ update-mime-database %{_datadir}/mime &> /dev/null || :
 %{_libexecdir}/pk-rpm-db-clean
 %{_unitdir}/rpm-db-clean.service
 %config %{_sysconfdir}/zypp/pk-zypp-cache.conf
-%dir /home/.pk-zypp-dist-upgrade-cache
 %{_libdir}/oneshot.d/pk-zypp-nemo-remove-old-cache
 
 %files glib
