@@ -190,8 +190,13 @@ zypp_backend_finished_error (PkBackendJob  *job, PkErrorEnum err_code,
 			     const char *format, ...);
 
 static void
-zypp_reset_pool ()
+zypp_reset_pool () // may throw a ZYppFactoryException
 {
+	// get the ZYpp instance first, because it may raise an exception if locked
+	// by another process, and we don't want to modify the pool in that case
+	ZYpp::Ptr zypp = NULL;
+	zypp = ZYppFactory::instance ().getZYpp ();
+
 	RepoManager manager;
 
 	// iterate over all known repositories and reload them from the cache on disk
@@ -215,8 +220,6 @@ zypp_reset_pool ()
 	}
 
 	// reset the state of the resolver
-	ZYpp::Ptr zypp = NULL;
-	zypp = ZYppFactory::instance ().getZYpp ();
 	if (zypp) {
 		zypp->pool().resolver().reset();
 		// the upgrade mode is not reset when resetting the solver and must be
@@ -279,7 +282,13 @@ zypp_set_dist_upgrade_mode (gboolean dist_upgrade_mode)
 
 	// if the cache path was swapped, the pool holds wrong information now and
 	// has to be reset
-	zypp_reset_pool();
+	try {
+		zypp_reset_pool();
+	} catch (const Exception &ex) {
+		PK_ZYPP_LOG("Failed to reset pool: %s",
+			ex.asUserString().c_str());
+		return FALSE;
+	}
 
 	return TRUE;
 }
