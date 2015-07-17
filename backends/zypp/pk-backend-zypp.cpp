@@ -3915,6 +3915,8 @@ pk_backend_search_files (PkBackend *backend, PkBackendJob *job, PkBitfield filte
 void
 pk_backend_get_repo_list (PkBackend *backend, PkBackendJob *job, PkBitfield filters)
 {
+	zypp_set_custom_config_file();
+
 	ZyppJob zjob(job);
 	ZYpp::Ptr zypp = zjob.get_zypp();
 
@@ -3958,6 +3960,8 @@ pk_backend_get_repo_list (PkBackend *backend, PkBackendJob *job, PkBitfield filt
 void
 pk_backend_repo_enable (PkBackend *backend, PkBackendJob *job, const gchar *rid, gboolean enabled)
 {
+	zypp_set_custom_config_file();
+
 	ZyppJob zjob(job);
 	ZYpp::Ptr zypp = zjob.get_zypp();
 
