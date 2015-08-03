@@ -2043,6 +2043,7 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo
 		int64_t total_install_bytes = 0;
 		int64_t total_remove_bytes = 0;
 		int64_t total_cached_bytes = 0;
+		int64_t biggest_package_download = 0;
 
 		// Get number of installations and removals for overall progress
 		priv->exec.reset();
@@ -2061,12 +2062,14 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo
 
 				Package::constPtr pkg = asKind<Package>(it->resolvable());
 				if (pkg) {
-					// TODO: Enable once we have upgraded libzypp
-					//if (pkg->isCached()) {
-						//total_cached_bytes += pkg->downloadSize();
-					//} else {
+					if (pkg->isCached()) {
+						total_cached_bytes += pkg->downloadSize();
+					} else {
 						total_download_bytes += pkg->downloadSize();
-					//}
+						if (pkg->downloadSize() > biggest_package_download) {
+							biggest_package_download = pkg->downloadSize();
+						}
+					}
 				}
 			} else if (!only_download && it->status().isToBeUninstalled()) {
 				if (!it->status().isToBeUninstalledDueToUpgrade()) {
@@ -2088,18 +2091,46 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo
 				total_remove_bytes,
 				total_cached_bytes);
 
-		int64_t required_space_bytes = (total_download_bytes + total_install_bytes - total_remove_bytes);
-		// XXX: This assumes package downloads also end up in rootfs, and that
-		// installed files will all take up space in the rootfs only
-		int64_t free_space_bytes = get_free_disk_space("/");
-		int64_t remaining_space_bytes = free_space_bytes - required_space_bytes;
+		int64_t required_space_bytes_download = total_download_bytes;
+		int64_t required_space_bytes_installation = (type == UPGRADE) ? (total_install_bytes - total_remove_bytes)
+		                                                              // it is the worst case if the biggest package gets installed last
+		                                                              : (biggest_package_download + total_install_bytes - total_remove_bytes);
 
-		if (remaining_space_bytes < 0) {
-			// Not enough space
+		// UPGRADE packages are downloaded to the /home partition, but are installed to rootfs
+		int64_t free_space_bytes_download = (type == UPGRADE) ? get_free_disk_space("/home")
+		                                                      : get_free_disk_space("/");
+		int64_t free_space_bytes_installation = get_free_disk_space("/");
+
+		int64_t remaining_space_bytes_download = free_space_bytes_download - required_space_bytes_download;	
+		int64_t remaining_space_bytes_installation = free_space_bytes_installation - required_space_bytes_installation;
+
+		PK_ZYPP_LOG("Download space "
+				"required %" PRId64 " bytes, "
+				"available %" PRId64 " bytes",
+				required_space_bytes_download,
+				free_space_bytes_download);
+		PK_ZYPP_LOG("Installation space "
+				"required %" PRId64 " bytes, "
+				"available %" PRId64 " bytes",
+				required_space_bytes_installation,
+				free_space_bytes_installation);
+
+		if (remaining_space_bytes_download < 0) {
+			// Not enough space for download
 			pk_backend_job_error_code (job, PK_ERROR_ENUM_NO_SPACE_ON_DEVICE,
-					"Not enough space. Need %.2f MiB, have %.2f MiB.\n",
-					(float)required_space_bytes / (1024. * 1024),
-					(float)free_space_bytes / (1024. * 1024));
+					"Not enough space for download. Need %.2f MiB, have %.2f MiB.\n",
+					(float)required_space_bytes_download / (1024. * 1024),
+					(float)free_space_bytes_download / (1024. * 1024));
+		}
+
+		// the download size does not add to the size required for installation, because zypp removes each
+		// downloaded package from cache immediately after successful installation
+		if (remaining_space_bytes_installation < 0) {
+			// Not enough space for installation
+			pk_backend_job_error_code (job, PK_ERROR_ENUM_NO_SPACE_ON_DEVICE,
+					"Not enough space for installation. Need %.2f MiB, have %.2f MiB.\n",
+					(float)required_space_bytes_installation / (1024. * 1024),
+			(float)free_space_bytes_installation / (1024. * 1024));
 			goto exit;
 		}
 
