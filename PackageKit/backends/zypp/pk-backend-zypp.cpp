@@ -3467,7 +3467,10 @@ backend_resolve_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
 			
 			if (zypp_is_no_solvable(newest)) {
 				newest = *it;
-			} else if (it->edition() > newest.edition() || Arch::compare(it->arch(), newest.arch()) > 0) {
+			} else if (it->edition() > newest.edition()) {
+				newest = *it;
+			} else if (it->edition() == newest.edition()
+					&& Arch::compare(it->arch(), newest.arch()) > 0) {
 				newest = *it;
 			}
 			//MIL << "emit " << *it << endl;
