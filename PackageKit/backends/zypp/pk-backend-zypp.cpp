@@ -2062,14 +2062,15 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo
 
 				Package::constPtr pkg = asKind<Package>(it->resolvable());
 				if (pkg) {
-					if (pkg->isCached()) {
-						total_cached_bytes += pkg->downloadSize();
-					} else {
+					// TODO: Enable once we have upgraded libzypp
+					//if (pkg->isCached()) {
+					//	total_cached_bytes += pkg->downloadSize();
+					//} else {
 						total_download_bytes += pkg->downloadSize();
 						if (pkg->downloadSize() > biggest_package_download) {
 							biggest_package_download = pkg->downloadSize();
 						}
-					}
+					//}
 				}
 			} else if (!only_download && it->status().isToBeUninstalled()) {
 				if (!it->status().isToBeUninstalledDueToUpgrade()) {
