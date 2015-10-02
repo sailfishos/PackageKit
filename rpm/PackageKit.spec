@@ -49,7 +49,7 @@ BuildRequires: libarchive-devel
 BuildRequires: gstreamer-devel
 BuildRequires: gst-plugins-base-devel
 BuildRequires: fontconfig-devel
-BuildRequires: libzypp-devel >= 14.0.0
+BuildRequires: libzypp-devel >= 5.20.0
 BuildRequires: bzip2-devel
 BuildRequires: pkgconfig(systemd)
 BuildRequires: pkgconfig(mce)
@@ -66,7 +66,7 @@ Summary: PackageKit zypp backend
 Group: System/Libraries
 %{_oneshot_requires_post}
 Requires: oneshot
-Requires: libzypp >= 14.0.0
+Requires: libzypp >= 5.20.0
 Requires: %{name} = %{version}-%{release}
 
 %description zypp
