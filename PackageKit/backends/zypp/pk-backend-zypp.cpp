@@ -2093,9 +2093,9 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo
 				total_cached_bytes);
 
 		int64_t required_space_bytes_download = total_download_bytes;
-		int64_t required_space_bytes_installation = (type == UPGRADE) ? (total_install_bytes - total_remove_bytes)
+		int64_t required_space_bytes_installation = (type == UPGRADE) ? MAX(0, total_install_bytes - total_remove_bytes)
 		                                                              // it is the worst case if the biggest package gets installed last
-		                                                              : (biggest_package_download + total_install_bytes - total_remove_bytes);
+		                                                              : (biggest_package_download + MAX(0, total_install_bytes - total_remove_bytes));
 
 		// UPGRADE packages are downloaded to the /home partition, but are installed to rootfs
 		int64_t free_space_bytes_download = (type == UPGRADE) ? get_free_disk_space("/home")
