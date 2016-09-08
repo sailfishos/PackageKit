@@ -1,6 +1,3 @@
-# Conditional building of X11 related things
-%bcond_with X11
-
 %define glib2_version           2.20.0
 %define dbus_version            1.1.3
 %define dbus_glib_version       0.74
@@ -32,10 +29,6 @@ BuildRequires: glib2-devel >= %{glib2_version}
 BuildRequires: dbus-devel  >= %{dbus_version}
 BuildRequires: dbus-glib-devel >= %{dbus_glib_version}
 BuildRequires: pam-devel
-%if %{with X11}
-BuildRequires: libX11-devel
-BuildRequires: pango-devel
-%endif
 BuildRequires: sqlite-devel
 BuildRequires: connman-devel
 BuildRequires: polkit-devel >= %{policykit_version}
@@ -46,8 +39,6 @@ BuildRequires: intltool
 BuildRequires: gettext
 BuildRequires: libgudev1-devel
 BuildRequires: libarchive-devel
-BuildRequires: gstreamer-devel
-BuildRequires: gst-plugins-base-devel
 BuildRequires: fontconfig-devel
 BuildRequires: libzypp-devel >= 5.20.0
 BuildRequires: bzip2-devel
@@ -143,16 +134,6 @@ Requires: %{name} = %{version}-%{release}
 %description plugin-devel
 Headers to compile out of tree PackageKit plugins.
 
-%package gstreamer-plugin
-Summary: Install GStreamer codecs using PackageKit
-Group: System/Libraries
-Requires: gstreamer
-Requires: PackageKit-glib = %{version}-%{release}
-
-%description gstreamer-plugin
-The PackageKit GStreamer plugin allows any Gstreamer application to install
-codecs from configured repositories using PackageKit.
-
 %package command-not-found
 Summary: Ask the user to install command line programs automatically
 Group: System/Libraries
@@ -204,12 +185,11 @@ export LIBS=-ldbus-glib-1
         --disable-local \
         --disable-strict \
         --disable-networkmanager \
+        --disable-gstreamer-plugin \
+        --enable-introspection=no \
         --disable-gtk-doc-html \
         --disable-man-pages \
         --disable-tests \
-%if %{with X11}
-        --enable-browser-plugin \
-%endif
         --disable-bash_completion
 
 make %{?_smp_mflags}
@@ -220,11 +200,6 @@ export PATH=$PATH:`pwd`/hack
 %make_install
 
 touch $RPM_BUILD_ROOT%{_localstatedir}/cache/PackageKit/groups.sqlite
-
-# create a link that GStreamer will recognise
-pushd ${RPM_BUILD_ROOT}%{_libexecdir} > /dev/null
-ln -s pk-gstreamer-install gst-install-plugins-helper
-popd > /dev/null
 
 # create a link that from the comps icons to PK, as PackageKit frontends
 # cannot add /usr/share/pixmaps/comps to the icon search path as some distros
@@ -358,12 +333,6 @@ update-mime-database %{_datadir}/mime &> /dev/null || :
 %defattr(-,root,root,-)
 %doc README AUTHORS  COPYING
 %{_bindir}/pk-debuginfo-install
-
-%files gstreamer-plugin
-%defattr(-,root,root,-)
-%doc README AUTHORS  COPYING
-%{_libexecdir}/pk-gstreamer-install
-%{_libexecdir}/gst-install-plugins-helper
 
 %files command-not-found
 %defattr(-,root,root,-)
