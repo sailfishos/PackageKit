@@ -1,6 +1,3 @@
-# Conditional building of X11 related things
-%bcond_with X11
-
 %define glib2_version           2.20.0
 %define dbus_version            1.1.3
 %define dbus_glib_version       0.74
@@ -32,10 +29,6 @@ BuildRequires: glib2-devel >= %{glib2_version}
 BuildRequires: dbus-devel  >= %{dbus_version}
 BuildRequires: dbus-glib-devel >= %{dbus_glib_version}
 BuildRequires: pam-devel
-%if %{with X11}
-BuildRequires: libX11-devel
-BuildRequires: pango-devel
-%endif
 BuildRequires: sqlite-devel
 BuildRequires: connman-devel
 BuildRequires: polkit-devel >= %{policykit_version}
@@ -207,9 +200,6 @@ export LIBS=-ldbus-glib-1
         --disable-gtk-doc-html \
         --disable-man-pages \
         --disable-tests \
-%if %{with X11}
-        --enable-browser-plugin \
-%endif
         --disable-bash_completion
 
 make %{?_smp_mflags}
