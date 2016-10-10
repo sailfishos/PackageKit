@@ -1,0 +1,86 @@
+From 85ab5ef044c0bacc4f29cc5aebea799ca9363a82 Mon, 10 Oct 2016 16:03:31 +0200
+From: Thomas Perl <thomas.perl@jolla.com>
+Date: Wed, 12 Feb 2014 11:08:47 +0100
+Subject: [PATCH] [zypp] Fix possible memory leaks with heap-allocated items vector
+
+
+In some cases (exception handling / early return), delete might not
+be called on the items vector. As there's no need for the vector to
+be alive for longer than the function duration, just make it a local
+variable on the stack.
+
+diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
+index abc2a99..e69dcee 100644
+--- a/backends/zypp/pk-backend-zypp.cpp
++++ b/backends/zypp/pk-backend-zypp.cpp
+@@ -2815,7 +2815,7 @@
+ 		ResPool pool = zypp_build_pool (zypp, TRUE);
+ 		PoolStatusSaver saver;
+ 		pk_backend_job_set_percentage (job, 10);
+-		vector<PoolItem> *items = new vector<PoolItem> ();
++		vector<PoolItem> items;
+ 
+ 		guint to_install = 0;
+ 		for (guint i = 0; package_ids[i]; i++) {
+@@ -2826,7 +2826,7 @@
+ 			PoolItem item(solvable);
+ 			// set status to ToBeInstalled
+ 			item.status ().setToBeInstalled (ResStatus::USER);
+-			items->push_back (item);
++			items.push_back (item);
+ 		
+ 		}
+ 			
+@@ -2843,14 +2843,12 @@
+ 		// PK_INFO_ENUM_DOWNLOADING | INSTALLING) for each package.
+ 		if (!zypp_perform_execution (job, zypp, INSTALL, FALSE, transaction_flags)) {
+ 			// reset the status of the marked packages
+-			for (vector<PoolItem>::iterator it = items->begin (); it != items->end (); ++it) {
++			for (vector<PoolItem>::iterator it = items.begin (); it != items.end (); ++it) {
+ 				it->statusReset ();
+ 			}
+-			delete (items);
+ 			pk_backend_job_finished (job);
+ 			return;
+ 		}
+-		delete (items);
+ 		// Rebuild pool after installation
+ 		// TODO: PLU This does not help. Installed has still wrong status
+ 		zypp_build_pool (zypp, TRUE, TRUE);
+@@ -2910,7 +2908,7 @@
+ 	gboolean autoremove = false;
+ 	gboolean allow_deps = false;
+ 	gchar **package_ids;
+-	vector<PoolItem> *items = new vector<PoolItem> ();
++	vector<PoolItem> items;
+ 
+ 	g_variant_get(params, "(t^a&sbb)",
+ 		      &transaction_flags,
+@@ -2949,7 +2947,7 @@
+ 		PoolItem item(solvable);
+ 		if (solvable.isSystem ()) {
+ 			item.status ().setToBeUninstalled (ResStatus::USER);
+-			items->push_back (item);
++			items.push_back (item);
+ 		} else {
+ 			item.status ().resetTransact (ResStatus::USER);
+ 		}
+@@ -2961,17 +2959,15 @@
+ 	{
+ 		if (!zypp_perform_execution (job, zypp, REMOVE, TRUE, transaction_flags)) {
+ 			//reset the status of the marked packages
+-			for (vector<PoolItem>::iterator it = items->begin (); it != items->end (); ++it) {
++			for (vector<PoolItem>::iterator it = items.begin (); it != items.end (); ++it) {
+ 				it->statusReset();
+ 			}
+-			delete (items);
+ 			zypp_backend_finished_error (
+ 				job, PK_ERROR_ENUM_TRANSACTION_ERROR,
+ 				"Couldn't remove the package");
+ 			return;
+ 		}
+ 
+-		delete (items);
+ 		pk_backend_job_set_percentage (job, 100);
+ 
+ 	} catch (const repo::RepoNotFoundException &ex) {

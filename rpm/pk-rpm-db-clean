@@ -25,6 +25,6 @@ rm -f /var/lib/rpm/__db.???
 if [ -f $PK_ZYPP_REBUILDDB_ON_BOOT ]; then
     rm -f $PK_ZYPP_REBUILDDB_ON_BOOT
     echo "Rebuilding RPM db ($PK_ZYPP_REBUILDDB_ON_BOOT exists)"
-    rpm --rebuilddb
+    rpmdb --rebuilddb
     echo "Rebuilding RPM db finished with exit status $?"
 fi

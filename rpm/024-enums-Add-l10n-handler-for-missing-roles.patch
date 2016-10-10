@@ -1,0 +1,27 @@
+From c707a812ae6d3555ca68ee2fadb505b46a984c97 Mon, 10 Oct 2016 15:54:09 +0200
+From: Juha Kallioinen <juha.kallioinen@jolla.com>
+Date: Mon, 28 Oct 2013 15:26:56 +0000
+Subject: [PATCH] [enums] Add l10n handler for missing roles
+
+
+Without this when G_DEBUG env is set, glib will emit a warning.
+
+diff --git a/lib/packagekit-glib2/pk-enum.c b/lib/packagekit-glib2/pk-enum.c
+index 8f556a6..730f1f6 100644
+--- a/lib/packagekit-glib2/pk-enum.c
++++ b/lib/packagekit-glib2/pk-enum.c
+@@ -1325,6 +1325,14 @@
+ 		/* TRANSLATORS: The role of the transaction, in present tense */
+ 		text = dgettext("PackageKit", "Getting transactions");
+ 		break;
++	case PK_ROLE_ENUM_UPGRADE_SYSTEM:
++		/* TRANSLATORS: The role of the transaction, in present tense */
++		text = dgettext("PackageKit", "Getting upgrades");
++		break;
++	case PK_ROLE_ENUM_REPAIR_SYSTEM:
++		/* TRANSLATORS: The role of the transaction, in present tense */
++		text = dgettext("PackageKit", "Repairing system");
++		break;
+ 	default:
+ 		g_warning ("role unrecognised: %s", pk_role_enum_to_string (role));
+ 	}

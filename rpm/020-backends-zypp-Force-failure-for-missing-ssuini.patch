@@ -1,0 +1,35 @@
+From b4e02e07d91c825c4207a02eb2cdbced892c3147 Mon, 10 Oct 2016 15:52:19 +0200
+From: Thomas Perl <thomas.perl@jolla.com>
+Date: Tue, 22 Oct 2013 12:15:11 +0200
+Subject: [PATCH] [backends] zypp: Force failure for missing ssu.ini
+
+
+In cases of a missing ssu.ini, the do { ... } while (retry) loop in
+zypp/media/MediaCurl.cc does not exit, even if MediaCurl::authenticate()
+(and in turn our implementation of prompt()) returns false (=abort).
+
+To fix this, we now throw a libzypp zypp::media::MediaException in the
+prompt() function in order to force the backend and libzypp to give up.
+
+diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
+index 9b1b9d7..417b06a 100644
+--- a/backends/zypp/pk-backend-zypp.cpp
++++ b/backends/zypp/pk-backend-zypp.cpp
+@@ -83,6 +83,7 @@
+ #include <zypp/base/Logger.h>
+ #include <zypp/base/String.h>
+ #include <zypp/media/MediaManager.h>
++#include <zypp/media/MediaException.h>
+ #include <zypp/parser/IniDict.h>
+ #include <zypp/parser/ParseException.h>
+ #include <zypp/parser/ProductFileReader.h>
+@@ -447,7 +448,8 @@
+ 		std::string urlstr = url.asString();
+ 		PK_ZYPP_LOG("Needs authentication: %s", urlstr.c_str());
+ 		/* No interactive authentication supported - admit failure */
+-		return false;
++		ZYPP_THROW(zypp::media::MediaException("Authentication failed (is SSU set up correctly?)"));
++		return false; // Not reached
+ 	}
+ };
+ 

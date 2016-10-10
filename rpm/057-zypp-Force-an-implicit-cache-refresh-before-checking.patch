@@ -1,0 +1,39 @@
+From 1b5f3aa324b33af0049defa2acc5d590433464c9 Mon, 10 Oct 2016 16:13:51 +0200
+From: Martin Grimme <martin.grimme@gmail.com>
+Date: Wed, 6 May 2015 16:15:27 +0200
+Subject: [PATCH] [zypp] Force an implicit cache refresh before checking the size of a dist upgrade. Fixes JB#28528
+
+
+diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
+index 451aeca..7bf849d 100644
+--- a/backends/zypp/pk-backend-zypp.cpp
++++ b/backends/zypp/pk-backend-zypp.cpp
+@@ -4343,9 +4343,12 @@
+ 
+ 	gchar *id = parameters->distro_id;
+ 
++	gboolean do_refresh = false;
++
+ 	if (strstr(id, "nemo::query-size:") == id) {
+ 		id += strlen("nemo::query-size:");
+ 		pk_bitfield_add(transaction_flags, PK_TRANSACTION_FLAG_ENUM_SIMULATE);
++		do_refresh = true;
+ 		PK_ZYPP_LOG("Getting size of distro upgrade, with pattern = '%s'", id);
+ 	}
+ 
+@@ -4371,6 +4374,7 @@
+ 					PK_TRANSACTION_FLAG_ENUM_ONLY_DOWNLOAD);
+ 			// Also try downloading dependencies of the pattern
+ 			install_pattern = true;
++			do_refresh = true;
+ 			break;
+ 		case PK_UPGRADE_KIND_ENUM_COMPLETE:
+ 			//MIL << "Installing upgrades and " << pattern_name << std::endl;
+@@ -4381,7 +4385,6 @@
+ 			//MIL << "Downloading and installing upgrades" << std::endl;
+ 			break;
+ 	}
+-	gboolean do_refresh = (parameters->upgrade_kind == PK_UPGRADE_KIND_ENUM_MINIMAL);
+ 	delete parameters;
+ 
+ 	ZyppJob zjob(job);

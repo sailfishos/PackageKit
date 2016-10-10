@@ -1,0 +1,23 @@
+From 5f00353a7d46c9ccd78c264334f656c6a8a2e19a Mon, 10 Oct 2016 15:54:52 +0200
+From: Thomas Perl <thomas.perl@jolla.com>
+Date: Mon, 11 Nov 2013 12:50:05 +0100
+Subject: [PATCH] [plugins] scan-desktop-files: Don't scan manually installed files
+
+
+diff --git a/src/plugins/pk-plugin-scan-desktop-files.c b/src/plugins/pk-plugin-scan-desktop-files.c
+index c84f5a3..df03a71 100644
+--- a/src/plugins/pk-plugin-scan-desktop-files.c
++++ b/src/plugins/pk-plugin-scan-desktop-files.c
+@@ -289,6 +289,12 @@
+ 	else
+ 		md5 = pk_plugin_get_filename_md5 (filename);
+ 
++	// Sailfish OS: Avoid scanning of manually installed .desktop files
++	if (strstr(filename, PK_DESKTOP_DEFAULT_APPLICATION_DIR "/apkd_launcher_") == filename) {
++		g_warning ("Skipping custom .desktop file: %s", filename);
++		goto out;
++	}
++
+ 	/* resolve */
+ 	package = pk_plugin_get_installed_package_for_file (plugin,
+ 							    filename,

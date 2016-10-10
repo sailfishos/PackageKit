@@ -1,0 +1,48 @@
+From 21af4d63b20ec9f774c63a2627c6c98fb56d05d8 Mon, 10 Oct 2016 15:55:58 +0200
+From: Thomas Perl <thomas.perl@jolla.com>
+Date: Mon, 2 Dec 2013 10:28:48 +0100
+Subject: [PATCH] [backends] zypp: Implement single-repo refresh feature
+
+
+To get a list of available repositories, use:
+
+    pkcon repo-list
+
+To force-refresh a given repository, use:
+
+    pkcon repo-set-data $REPOSITORY refresh-now true
+
+To refresh a given repository if needed, use:
+
+    pkcon repo-set-data $REPOSITORY refresh-now false
+
+This feature has been implemented on top of repo-set-data, so that
+we do not need to modify or add a new D-Bus API method to PackageKit.
+
+diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
+index 7694a09..66b4c2e 100644
+--- a/backends/zypp/pk-backend-zypp.cpp
++++ b/backends/zypp/pk-backend-zypp.cpp
+@@ -3597,6 +3597,13 @@
+ 		} else if (g_ascii_strcasecmp (parameter, "name") == 0) {
+ 			repo.setName(value);
+ 			manager.modifyRepository (repo_id, repo);
++		} else if (g_ascii_strcasecmp (parameter, "refresh-now") == 0) {
++			// Hack to allow refreshing a single repository
++			bool force = (g_ascii_strcasecmp (value, "true") == 0);
++			PK_ZYPP_LOG("Refreshing single repository (id=%s, url=%s, force=%s)", repo_id,
++					repo.url().asString().c_str(), force ? "true" : "false");
++			pk_backend_job_set_status (job, PK_STATUS_ENUM_REFRESH_CACHE);
++			zypp_refresh_meta_and_cache (manager, repo, force);
+ 		} else if (g_ascii_strcasecmp (parameter, "prio") == 0) {
+ 			gint prio = 0;
+ 			gint length = strlen (value);
+@@ -3627,7 +3634,7 @@
+ 			}
+ 
+ 		} else {
+-			pk_backend_job_error_code (job, PK_ERROR_ENUM_NOT_SUPPORTED, "Valid parameters for set_repo_data are remove/add/refresh/prio/keep/url/name");
++			pk_backend_job_error_code (job, PK_ERROR_ENUM_NOT_SUPPORTED, "Valid parameters for set_repo_data are remove/add/refresh/prio/keep/url/name/refresh-now");
+ 		}
+ 
+ 	} catch (const repo::RepoNotFoundException &ex) {

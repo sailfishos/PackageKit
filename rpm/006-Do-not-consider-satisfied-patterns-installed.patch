@@ -1,0 +1,84 @@
+From 66d7b4d6ddb0374443d49252c5d139b979684107 Mon, 10 Oct 2016 15:50:18 +0200
+From: Thomas Perl <thomas.perl@jollamobile.com>
+Date: Tue, 13 Aug 2013 15:43:15 +0200
+Subject: [PATCH] Do not consider satisfied patterns "installed"
+
+
+Patterns can not be "installed" as such - they can only be satisfied
+if all their dependencies are installed / satisfied.
+
+Installing a pattern means trying to satisfy its dependencies.
+
+Change the logic by which packages are filtered, so that patterns are
+never considered "installed", even if their dependencies are satisfied.
+This way, re-installing a pattern becomes possible, and will make sure
+all current dependencies are satisfied.
+
+The drawback of this is that now we can't use PackageKit to check if
+a pattern is satisfied or not. Fixing this would require modifying the
+code in zypp_emit_filtered_packages_in_list(). The comment there says
+that emitting the same version of a package as INSTALLED and AVAILABLE
+is not possible due to a PackageKit quirk.
+
+For normal packages, this won't be a problem, as the installed package
+will have some old version and a possible available update for that
+package will have a different version. For patterns, however, even
+though they are versioned, the pattern version at which the pattern was
+installed isn't recorded(?), so we cannot emit the old pattern version
+as INSTALLED and also emit the new pattern version as AVAILABLE.
+
+Add some logging of filters in backend_get_packages_thread() to aid in
+debugging similar filter-related issues in the future.
+
+[backends] zypp: Do not consider satisfied patterns "installed"
+
+diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
+index 275469c..495a74e 100644
+--- a/backends/zypp/pk-backend-zypp.cpp
++++ b/backends/zypp/pk-backend-zypp.cpp
+@@ -1106,10 +1106,10 @@
+ 	for (guint i = 0; i < PK_FILTER_ENUM_LAST; i++) {
+ 		if ((filters & pk_bitfield_value (i)) == 0)
+ 			continue;
+-		if (i == PK_FILTER_ENUM_INSTALLED && !(item.isSystem () || zypp_satisfied_pattern(item))){
++		if (i == PK_FILTER_ENUM_INSTALLED && !(item.isSystem ())) {
+ 			return TRUE;
+ 		}
+-		if (i == PK_FILTER_ENUM_NOT_INSTALLED && (item.isSystem () || zypp_satisfied_pattern(item))){
++		if (i == PK_FILTER_ENUM_NOT_INSTALLED && (item.isSystem ())) {
+ 			return TRUE;
+ 		}
+ 		if (i == PK_FILTER_ENUM_ARCH) {
+@@ -1167,7 +1167,7 @@
+ 
+ 	// always emit system installed packages first
+ 	for (sat_it_t it = v.begin (); it != v.end (); ++it) {
+-		if (!(it->isSystem() || zypp_satisfied_pattern(*it)) ||
++		if (!(it->isSystem()) ||
+ 		    zypp_filter_solvable (filters, *it)) {
+ 			continue;
+ 		}
+@@ -1802,7 +1802,7 @@
+ 
+ 		// get-requires only works for installed packages. It's meaningless for stuff in the repo
+ 		// same with yum backend
+-		if (!(solvable.isSystem () || zypp_satisfied_pattern(solvable))) { 
++		if (!(solvable.isSystem ())) {
+ 			continue;
+ 		}
+ 		// set Package as to be uninstalled
+@@ -3161,12 +3161,12 @@
+ static void
+ backend_get_packages_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
+ {
+-	MIL << endl;
+-
+ 	PkBitfield _filters;
+ 	g_variant_get (params, "(t)",
+ 		       &_filters);
+ 
++	MIL << pk_filter_bitfield_to_string(_filters) << endl;
++
+ 	ZyppJob zjob(job);
+ 	ZYpp::Ptr zypp = zjob.get_zypp();
+ 

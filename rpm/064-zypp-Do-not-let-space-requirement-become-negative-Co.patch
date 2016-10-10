@@ -1,0 +1,22 @@
+From 31f018262e2f90fdcd4954e3d1340339c1156272 Mon, 10 Oct 2016 16:18:00 +0200
+From: Martin Grimme <martin.grimme@gmail.com>
+Date: Fri, 2 Oct 2015 09:42:17 +0200
+Subject: [PATCH] [zypp] Do not let space requirement become negative. Contributes to JB#31091
+
+
+diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
+index def5d3e..8155bc2 100644
+--- a/backends/zypp/pk-backend-zypp.cpp
++++ b/backends/zypp/pk-backend-zypp.cpp
+@@ -2093,9 +2093,9 @@
+ 				total_cached_bytes);
+ 
+ 		int64_t required_space_bytes_download = total_download_bytes;
+-		int64_t required_space_bytes_installation = (type == UPGRADE) ? (total_install_bytes - total_remove_bytes)
++		int64_t required_space_bytes_installation = (type == UPGRADE) ? MAX(0, total_install_bytes - total_remove_bytes)
+ 		                                                              // it is the worst case if the biggest package gets installed last
+-		                                                              : (biggest_package_download + total_install_bytes - total_remove_bytes);
++		                                                              : (biggest_package_download + MAX(0, total_install_bytes - total_remove_bytes));
+ 
+ 		// UPGRADE packages are downloaded to the /home partition, but are installed to rootfs
+ 		int64_t free_space_bytes_download = (type == UPGRADE) ? get_free_disk_space("/home")
