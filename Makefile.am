@@ -11,8 +11,7 @@ SUBDIRS = 						\
 	src						\
 	client						\
 	backends					\
-	contrib						\
-	docs
+	contrib
 
 clean-local :
 	rm -f *~
@@ -35,7 +34,6 @@ MAINTAINERCLEANFILES =					\
 	$(srcdir)/mkinstalldirs				\
 	$(srcdir)/omf.make				\
 	$(srcdir)/xmldocs.make				\
-	$(srcdir)/gtk-doc.make				\
 	$(srcdir)/ChangeLog				\
 	`find "$(srcdir)" -type f -name Makefile -print` \
 	`find "$(srcdir)" -type f -name Makefile.in -print` \

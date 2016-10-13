@@ -81,7 +81,7 @@ AM_GLIB_GNU_GETTEXT
 AC_DEFINE_UNQUOTED([GETTEXT_PACKAGE],["$GETTEXT_PACKAGE"],[gettext domain])
 
 # set up gtk-doc
-GTK_DOC_CHECK([1.11],[--flavour no-tmpl])
+#GTK_DOC_CHECK([1.11],[--flavour no-tmpl])
 
 AC_PATH_PROG(GLIB_GENMARSHAL, glib-genmarshal)
 AC_PATH_PROG(GLIB_MKENUMS, glib-mkenums)
@@ -562,10 +562,6 @@ dnl ---------------------------------------------------------------------------
 AC_CONFIG_FILES([
 Makefile
 etc/Makefile
-docs/Makefile
-docs/api/Makefile
-docs/api/dbus/Makefile
-docs/api/version.xml
 contrib/Makefile
 contrib/gstreamer-plugin/Makefile
 contrib/gtk-module/Makefile
