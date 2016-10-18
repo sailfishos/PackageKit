@@ -55,8 +55,6 @@ cross-architecture API.
 %package zypp
 Summary: PackageKit zypp backend
 Group: System/Libraries
-%{_oneshot_requires_post}
-Requires: oneshot
 Requires: libzypp >= 5.20.0
 Requires: %{name} = %{version}-%{release}
 
@@ -91,15 +89,6 @@ Requires: %{name} = %{version}-%{release}
 
 %description python
 Python libraries for accessing PackageKit.
-
-%package cron
-Summary: Cron job and related utilities for PackageKit
-Group: System/Base
-Requires: cronie
-Requires: %{name} = %{version}-%{release}
-
-%description cron
-Crontab and utilities for running PackageKit as a cron job.
 
 %package debug-install
 Summary: Facility to install debugging packages using PackageKit
@@ -179,6 +168,7 @@ export LIBS=-ldbus-glib-1
 %configure \
         --disable-static \
         --disable-dummy \
+        --disable-cron \
         --enable-zypp \
         --with-default-backend=zypp \
         --enable-mce \
@@ -231,9 +221,6 @@ install -D -m 755 %{S:101} %{buildroot}%{_libexecdir}/pk-rpm-db-clean
 # install dist-upgrade libzypp config file
 install -D -m 644 %{S:102} %{buildroot}%{_sysconfdir}/zypp/pk-zypp-cache.conf
 
-# install the old cache dir cleanup oneshot script
-install -D -m 755 %{S:103} %{buildroot}%{_libdir}/oneshot.d/pk-zypp-nemo-remove-old-cache
-
 # add hardcoded arch entry to pk-zypp-cache.conf (JB#28277)
 # needed only for armv7hl-on-armv7l kernel
 %ifarch armv7hl
@@ -254,14 +241,13 @@ update-mime-database %{_datadir}/mime &> /dev/null || :
 
 %post zypp
 /bin/systemctl preset rpm-db-clean.service >/dev/null 2>&1 || :
-%{_bindir}/add-oneshot pk-zypp-nemo-remove-old-cache
 
 %preun zypp
 %systemd_preun rpm-db-clean.service
 
 %files -f %{name}.lang
 %defattr(-,root,root,-)
-%doc README AUTHORS  COPYING
+%doc COPYING
 %dir %{_datadir}/PackageKit
 %dir %{_datadir}/PackageKit/helpers
 %dir %{_sysconfdir}/PackageKit
@@ -310,7 +296,6 @@ update-mime-database %{_datadir}/mime &> /dev/null || :
 %{_libexecdir}/pk-rpm-db-clean
 %{_unitdir}/rpm-db-clean.service
 %config %{_sysconfdir}/zypp/pk-zypp-cache.conf
-%{_libdir}/oneshot.d/pk-zypp-nemo-remove-old-cache
 
 %files glib
 %defattr(-,root,root,-)
@@ -322,12 +307,6 @@ update-mime-database %{_datadir}/mime &> /dev/null || :
 %doc README AUTHORS  COPYING
 %dir %{python_sitelib}/packagekit
 %{python_sitelib}/packagekit/*py*
-
-%files cron
-%defattr(-,root,root,-)
-%doc README AUTHORS  COPYING
-%config %{_sysconfdir}/cron.daily/packagekit-background.cron
-%config(noreplace) %{_sysconfdir}/sysconfig/packagekit-background
 
 %files debug-install
 %defattr(-,root,root,-)
