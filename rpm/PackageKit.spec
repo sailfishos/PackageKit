@@ -19,7 +19,6 @@ Source0:   http://www.packagekit.org/releases/%{name}-%{version}.tar.gz
 Source100: rpm-db-clean.service
 Source101: pk-rpm-db-clean
 Source102: pk-zypp-cache.conf
-Source103: pk-zypp-nemo-remove-old-cache
 
 Requires: PackageKit-zypp = %{version}-%{release}
 Requires: shared-mime-info
