@@ -36,7 +36,6 @@ BuildRequires: python-devel
 BuildRequires: perl(XML::Parser)
 BuildRequires: intltool
 BuildRequires: gettext
-BuildRequires: libgudev1-devel
 BuildRequires: libarchive-devel
 BuildRequires: fontconfig-devel
 BuildRequires: libzypp-devel >= 5.20.0
@@ -132,17 +131,6 @@ Requires: PackageKit-glib = %{version}-%{release}
 A simple helper that offers to install new packages on the command line
 using PackageKit.
 
-%package device-rebind
-Summary: Device rebind functionality for PackageKit
-Group: System/Libraries
-Requires: PackageKit-glib = %{version}-%{release}
-
-%description device-rebind
-The device rebind functionality offer the ability to re-initialize devices
-after firmware has been installed by PackageKit. This removes the need for the
-user to restart the computer or remove and re-insert the device.
-
-
 %prep
 %setup -q -n %{name}-%{version}/PackageKit
 
@@ -179,6 +167,7 @@ export LIBS=-ldbus-glib-1
         --disable-gtk-doc-html \
         --disable-man-pages \
         --disable-tests \
+        --disable-device-rebind \
         --disable-bash_completion
 
 make %{?_smp_mflags}
@@ -318,11 +307,6 @@ update-mime-database %{_datadir}/mime &> /dev/null || :
 %{_sysconfdir}/profile.d/*
 %{_libexecdir}/pk-command-not-found
 %config(noreplace) %{_sysconfdir}/PackageKit/CommandNotFound.conf
-
-%files device-rebind
-%defattr(-,root,root,-)
-%doc README AUTHORS  COPYING
-%{_sbindir}/pk-device-rebind
 
 %files glib-devel
 %defattr(-,root,root,-)
