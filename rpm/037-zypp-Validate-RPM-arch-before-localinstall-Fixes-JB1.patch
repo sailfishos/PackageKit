@@ -1,0 +1,56 @@
+From 02454b4b93b215649ff61484f90daa657e4bfd52 Mon, 10 Oct 2016 16:03:26 +0200
+From: Thomas Perl <thomas.perl@jolla.com>
+Date: Tue, 11 Feb 2014 11:13:54 +0100
+Subject: [PATCH] [zypp] Validate RPM arch before local-install. Fixes JB#15666
+
+
+diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
+index 66b4c2e..abc2a99 100644
+--- a/backends/zypp/pk-backend-zypp.cpp
++++ b/backends/zypp/pk-backend-zypp.cpp
+@@ -1261,10 +1261,10 @@
+ 
+ 
+ static gboolean
+-system_and_package_are_x86 (sat::Solvable item)
++system_and_package_are_x86 (Arch arch)
+ {
+ 	// i586, i686, ... all should be considered the same arch for our comparison
+-	return ( item.arch() == Arch_i586 && ZConfig::defaultSystemArchitecture() == Arch_i686 );
++	return ( arch == Arch_i586 && ZConfig::defaultSystemArchitecture() == Arch_i686 );
+ }
+ 
+ static gboolean
+@@ -1300,12 +1300,12 @@
+ 		if (i == PK_FILTER_ENUM_ARCH) {
+ 			if (item.arch () != ZConfig::defaultSystemArchitecture () &&
+ 			    item.arch () != Arch_noarch &&
+-			    ! system_and_package_are_x86 (item))
++			    ! system_and_package_are_x86 (item.arch ()))
+ 				return TRUE;
+ 		}
+ 		if (i == PK_FILTER_ENUM_NOT_ARCH) {
+ 			if (item.arch () == ZConfig::defaultSystemArchitecture () ||
+-			    system_and_package_are_x86 (item))
++			    system_and_package_are_x86 (item.arch ()))
+ 				return TRUE;
+ 		}
+ 		if (i == PK_FILTER_ENUM_SOURCE && !(isKind<SrcPackage>(item)))
+@@ -2598,6 +2598,17 @@
+ 			return;
+ 		}
+ 
++		// check if the file has an acceptable architecture
++		if (rpmHeader->tag_arch() != ZConfig::defaultSystemArchitecture () &&
++				rpmHeader->tag_arch() != Arch_noarch &&
++				! system_and_package_are_x86 (rpmHeader->tag_arch ())) {
++			zypp_backend_finished_error (
++				job, PK_ERROR_ENUM_LOCAL_INSTALL_FAILED,
++				"%s has wrong architecture: %s", full_paths[i],
++				rpmHeader->tag_arch ().asString (). c_str());
++			return;
++		}
++
+ 		// copy the rpm into tmpdir
+ 		string tempDest = tmpDir.path ().asString () + "/" + rpmHeader->tag_name () + ".rpm";
+ 		if (filesystem::copy (full_paths[i], tempDest) != 0) {

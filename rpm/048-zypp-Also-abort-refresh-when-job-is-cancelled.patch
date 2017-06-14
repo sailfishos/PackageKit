@@ -1,0 +1,44 @@
+From 1f63a42a6539e090a186ad5fc8e356174f208759 Mon, 10 Oct 2016 16:10:17 +0200
+From: Thomas Perl <thomas.perl@jolla.com>
+Date: Mon, 12 May 2014 19:02:38 +0200
+Subject: [PATCH] [zypp] Also abort refresh when job is cancelled
+
+
+diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
+index a4e7e9c..36e71e6 100644
+--- a/backends/zypp/pk-backend-zypp.cpp
++++ b/backends/zypp/pk-backend-zypp.cpp
+@@ -2001,6 +2001,11 @@
+ 	for (list <RepoInfo>::iterator it = repos.begin(); it != repos.end(); ++it, i++) {
+ 		RepoInfo repo (*it);
+ 
++		if (currentJobIsCancelled()) {
++			PK_ZYPP_LOG("Aborting refresh, as job is cancelled");
++			return FALSE;
++		}
++
+ 		if (!zypp_is_valid_repo (job, repo))
+ 			return FALSE;
+ 		if (pk_backend_job_get_is_error_set (job))
+@@ -2558,12 +2563,17 @@
+ 	ZyppJob zjob(job);
+ 	ZYpp::Ptr zypp = zjob.get_zypp();
+ 
+-	if (zypp == NULL){
+-		pk_backend_job_finished (job);
+-		return;
++	if (zypp) {
++		zypp_refresh_cache (job, zypp, TRUE);
++
++		if (zjob.isCancelled()) {
++			PK_ZYPP_LOG("Package refresh was cancelled on user request");
++			pk_backend_job_error_code (job,
++					PK_ERROR_ENUM_TRANSACTION_CANCELLED,
++					"Refresh was cancelled");
++		}
+ 	}
+ 
+-	zypp_refresh_cache (job, zypp, TRUE);
+ 	pk_backend_job_finished (job);
+ }
+ 

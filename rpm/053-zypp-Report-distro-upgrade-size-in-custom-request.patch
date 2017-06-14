@@ -1,0 +1,87 @@
+From 02806c3fd5be1f1876c866a39fa0cb73fd2f9345 Mon, 10 Oct 2016 16:11:29 +0200
+From: Thomas Perl <m@thp.io>
+Date: Thu, 5 Feb 2015 18:36:29 +0100
+Subject: [PATCH] [zypp] Report distro upgrade size in custom request
+
+
+If carrying out a distro-upgrade, the required size can be determined
+via a custom "nemo::query-size:" prefix to the pattern name, e.g.:
+
+    pkcon upgrade-system nemo::query-size:jolla-configuration-sbj complete
+
+The error message will be formatted like this:
+
+    "DOWNLOAD=<download bytes>;INSTALL=<install bytes>;REMOVE=<remove bytes>"
+
+The error ID is PK_ERROR_ENUM_NO_DISTRO_UPGRADE_DATA.
+
+diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
+index 552baff..9a50496 100644
+--- a/backends/zypp/pk-backend-zypp.cpp
++++ b/backends/zypp/pk-backend-zypp.cpp
+@@ -1774,7 +1774,7 @@
+ 		}
+ 
+ 		ResPool pool = ResPool::instance ();
+-		if (pk_bitfield_contain (transaction_flags, PK_TRANSACTION_FLAG_ENUM_SIMULATE)) {
++		if (type != UPGRADE && pk_bitfield_contain (transaction_flags, PK_TRANSACTION_FLAG_ENUM_SIMULATE)) {
+ 			ret = TRUE;
+ 
+ 			//MIL << "simulating" << endl;
+@@ -1872,6 +1872,8 @@
+ 
+ 		PK_ZYPP_LOG("Before commit: %d downloads, %d installs, %d removals",
+ 				priv->exec.total_downloads, priv->exec.total_installs, priv->exec.total_removals);
++		PK_ZYPP_LOG("Byte sizes: %ld download, %ld install, %ld remove",
++				total_download_bytes, total_install_bytes, total_remove_bytes);
+ 
+ 		int64_t required_space_bytes = (total_download_bytes + total_install_bytes - total_remove_bytes);
+ 		// XXX: This assumes package downloads also end up in rootfs, and that
+@@ -1885,6 +1887,21 @@
+ 					"Not enough space. Need %.2f MiB, have %.2f MiB.\n",
+ 					(float)required_space_bytes / (1024. * 1024),
+ 					(float)free_space_bytes / (1024. * 1024));
++			goto exit;
++		}
++
++		if (pk_bitfield_contain (transaction_flags, PK_TRANSACTION_FLAG_ENUM_SIMULATE)) {
++			gchar *msg = g_strdup_printf("DOWNLOAD=%ld;INSTALL=%ld;REMOVE=%ld",
++					total_download_bytes, total_install_bytes, total_remove_bytes);
++			PK_ZYPP_LOG("Reporting upgrade size: '%s'", msg);
++			pk_backend_job_error_code (job, PK_ERROR_ENUM_NO_DISTRO_UPGRADE_DATA, "%s\n", msg);
++			g_free(msg);
++
++			PK_ZYPP_LOG("Simulate requested, resetting status");
++			for (ResPool::const_iterator it = pool.begin (); it != pool.end (); ++it) {
++				it->statusReset ();
++			}
++
+ 			goto exit;
+ 		}
+ 
+@@ -4112,7 +4129,16 @@
+ {
+ 	DistUpgrade *parameters = static_cast<DistUpgrade *>(user_data);
+ 	PkBitfield transaction_flags = 0;
+-	std::string pattern_name = std::string("pattern:") + std::string(parameters->distro_id);
++
++	gchar *id = parameters->distro_id;
++
++	if (strstr(id, "nemo::query-size:") == id) {
++		id += strlen("nemo::query-size:");
++		pk_bitfield_add(transaction_flags, PK_TRANSACTION_FLAG_ENUM_SIMULATE);
++		PK_ZYPP_LOG("Getting size of distro upgrade, with pattern = '%s'", id);
++	}
++
++	std::string pattern_name = std::string("pattern:") + std::string(id);
+ 	bool install_pattern = false;
+ 
+ 	/**
+@@ -4174,6 +4200,7 @@
+ 			zypp_get_packages_by_name(pattern_name.c_str(), ResKind::pattern, patterns);
+ 
+ 			if (patterns.size() == 0) {
++				PK_ZYPP_LOG ("Pattern not found: %s", pattern_name.c_str());
+ 				//MIL << "Pattern not found: " << pattern_name << " - ignoring" << std::endl;
+ 			}
+ 
