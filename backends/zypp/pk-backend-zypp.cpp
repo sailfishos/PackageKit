@@ -38,6 +38,7 @@
 #include <sys/vfs.h>
 #include <unistd.h>
 #include <vector>
+#include <utime.h>
 
 #include <glib.h>
 #include <glib/gi18n.h>
@@ -191,6 +192,119 @@ guint _dl_count = 0;
 guint _dl_progress = 0;
 guint _dl_status = 0;
 
+// Forward declaration
+static void
+zypp_backend_finished_error (PkBackendJob  *job, PkErrorEnum err_code,
+			     const char *format, ...);
+
+static void
+zypp_reset_pool () // may throw a ZYppFactoryException
+{
+	// get the ZYpp instance first, because it may raise an exception if locked
+	// by another process, and we don't want to modify the pool in that case
+	ZYpp::Ptr zypp = NULL;
+	zypp = ZYppFactory::instance ().getZYpp ();
+
+	RepoManager manager;
+
+	// iterate over all known repositories and reload them from the cache on disk
+	for (RepoManager::RepoConstIterator it = manager.repoBegin(); it != manager.repoEnd(); ++it) {
+		RepoInfo repoInfo (*it);
+		LOG << "Reloading repository " << repoInfo.alias () << " from disk cache" << std::endl;
+		Repository repo = sat::Pool::instance().reposFind(repoInfo.alias ());
+		// wipe all data we currently hold about that repository in the pool,
+		// because loadFromCache() will just add data
+		repo.eraseFromPool();
+
+		if (manager.isCached(repoInfo)) {
+			try {
+				manager.loadFromCache(repoInfo);
+			} catch (const Exception &ex) {
+				ERR << "Failed to reload repository " << repoInfo.alias() << ": " << ex.asUserString() << std::endl;
+			}
+		}
+	}
+
+	// reset the state of the resolver
+	if (zypp) {
+		zypp->pool().resolver().reset();
+		// the upgrade mode is not reset when resetting the solver and must be
+		// reset explicitly
+		zypp->pool().resolver().setUpgradeMode(FALSE);
+	}
+}
+
+static gboolean
+zypp_set_dist_upgrade_mode (gboolean dist_upgrade_mode)
+{
+	const char *target_path = "/var/cache/pk-zypp-cache";
+	const char *path = dist_upgrade_mode ? "/home/.pk-zypp-dist-upgrade-cache"
+		: "/var/cache/zypp";
+
+	char tmp[PATH_MAX];
+	struct stat st;
+
+	if (stat(path, &st) != 0) {
+		LOG << "Creating cache directory: " << path << std::endl;
+		if (mkdir(path, 0755) != 0) {
+			ERR << "Cannot create directory: " << strerror(errno) << std::endl;
+			return FALSE;
+		}
+	}
+
+	if (lstat(target_path, &st) != 0) {
+		LOG << "Creating symlink: " << target_path << " -> " << path << std::endl;
+		if (symlink(path, target_path) != 0) {
+			ERR << "Cannot create symlink: " << strerror(errno) << std::endl;
+			return FALSE;
+		}
+		return TRUE;
+	}
+
+	ssize_t tmp_len = readlink(target_path, tmp, sizeof(tmp));
+	if (tmp_len == -1) {
+		ERR << "Cannot read dist upgrade path: " << strerror(errno) << std::endl;
+		return FALSE;
+	} else {
+		tmp[tmp_len] = 0x0;
+	}
+
+	// If target_path is already pointing to path, we're done
+	if (strcmp(path, tmp) == 0) {
+		return TRUE;
+	}
+
+	// Need to update the symlink here
+	if (unlink(target_path) != 0) {
+		ERR << "Cannot remove dist upgrade path: " << strerror(errno) << std::endl;
+		return FALSE;
+	}
+
+	LOG << "Creating symlink: " << target_path << " -> " << path << std::endl;
+	if (symlink(path, target_path) != 0) {
+		ERR << "Cannot create symlink: " << strerror(errno) << std::endl;
+		return FALSE;
+	}
+
+	// if the cache path was swapped, the pool holds wrong information now and
+	// has to be reset
+	try {
+		zypp_reset_pool();
+	} catch (const Exception &ex) {
+		ERR << "Failed to reset pool: " << ex.asUserString() << std::endl;
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
+static void
+zypp_set_custom_config_file ()
+{
+	// override configuration values to control cache directory
+	setenv("ZYPP_CONF", "/etc/zypp/packagekit-zypp-override.conf", 1);
+}
+
 /*
  * Test if this is pattern and all its dependencies are installed
  */
@@ -305,8 +419,32 @@ zypp_backend_job_thread_wrapper (PkBackendJob *job, GVariant *params,
  **/
 static gboolean
 zypp_backend_job_thread_create (PkBackendJob *job, PkBackendJobThreadFunc func,
-		gpointer user_data, GDestroyNotify destroy_func)
+		gpointer user_data, GDestroyNotify destroy_func,
+		bool requires_dist_upgrade=false)
 {
+	// Use custom configuration for libzypp
+	zypp_set_custom_config_file ();
+
+	if (requires_dist_upgrade) {
+		// This transaction requires libzypp to be in dist-upgrade mode
+		if (!zypp_set_dist_upgrade_mode (TRUE)) {
+			ERR << "Could not configure dist-upgrade mode" << std::endl;
+			zypp_backend_finished_error (job,
+					PK_ERROR_ENUM_NO_DISTRO_UPGRADE_DATA,
+					"Could not configure dist-upgrade mode.");
+			return false;
+		}
+	} else {
+		// This transaction requires libzypp to be in non-dist-upgrade mode
+		if (!zypp_set_dist_upgrade_mode (FALSE)) {
+			ERR << "Could not configure normal mode" << std::endl;
+			zypp_backend_finished_error (job,
+					PK_ERROR_ENUM_NO_DISTRO_UPGRADE_DATA,
+					"Could not configure normal mode.");
+			return false;
+		}
+	}
+
 	ZyppBackendThreadWrapperData *data = new ZyppBackendThreadWrapperData(func,
 			user_data, destroy_func);
 	return pk_backend_job_thread_create (job, zypp_backend_job_thread_wrapper,
@@ -880,6 +1018,13 @@ ZyppJob::ZyppJob(PkBackendJob *job)
 	: job(job)
 	, cancellable(g_cancellable_new())
 {
+#if defined(PK_ZYPP_DEBUG_DIST_UPGRADE_CACHE_SEPARATION)
+	zypp::ZConfig &zconfig = zypp::ZConfig::instance();
+	LOG << "Repo cache path: " << zconfig.repoCachePath().asString() << std::endl;
+	LOG << "Repo metadata path: " << zconfig.repoMetadataPath().asString() << std::endl;
+	LOG << "Repo packages path: " << zconfig.repoPackagesPath().asString() << std::endl;
+#endif
+
 	MIL << "locking zypp" << std::endl;
 	pthread_mutex_lock(&priv->zypp_mutex);
 
@@ -952,13 +1097,44 @@ ZYpp::Ptr
 ZyppJob::get_zypp()
 {
 	static gboolean initialized = FALSE;
+	static std::string currentRoot = "";
 	ZYpp::Ptr zypp = NULL;
+
+	// Determine the real root path of the cache directory (possibly
+	// symlinked) in order to be able to check if we need to reinit
+	// the target (when the cache path changed)
+	zypp::ZConfig &zconfig = zypp::ZConfig::instance();
+	char *cachePath = strdup(zconfig.repoCachePath().asString().c_str());
+	char tmp[PATH_MAX];
+
+	std::string targetRoot;
+	ssize_t tmp_len = readlink(cachePath, tmp, sizeof(tmp));
+	if (tmp_len == -1) {
+		ERR << "Cannot read dist upgrade path: " << strerror(errno) << " falling back to " << cachePath << std::endl;
+		strncpy(tmp, cachePath, PATH_MAX - 1);
+		targetRoot.assign(cachePath);
+	} else {
+		targetRoot.assign(tmp, tmp_len);
+	}
 
 	try {
 		zypp = ZYppFactory::instance ().getZYpp ();
 
 		/* TODO: we need to lifecycle manage this, detect changes
 		   in the requested 'root' etc. */
+		if (targetRoot != currentRoot) {
+			if (initialized) {
+				LOG << "Switching target with hot pool: " << currentRoot << " -> " << targetRoot << std::endl;
+				zypp->finishTarget ();
+				zypp->pool().resolver().reset();
+				currentRoot = targetRoot;
+				initialized = false;
+			} else {
+				LOG << "Setting target on init: " << targetRoot << std::endl;
+				currentRoot = targetRoot;
+			}
+		}
+
 		if (!initialized) {
 			try {
 				filesystem::Pathname pathname("/");
@@ -4075,6 +4251,7 @@ backend_upgrade_system_thread (PkBackendJob *job,
 	}
 
 	std::string pattern_name = std::string("pattern:") + std::string(distro_id);
+	gboolean do_refresh = upgrade_kind == PK_UPGRADE_KIND_ENUM_MINIMAL;
 
 	/**
 	 * Possible values for upgrade_kind:
@@ -4106,8 +4283,14 @@ backend_upgrade_system_thread (PkBackendJob *job,
 			break;
 	}
 
-	/* refresh the repos before checking for updates. */
-	if (!zypp_refresh_cache (job, zypp, FALSE)) {
+	// Setting force to TRUE, as we want to force a cache refresh
+	// before installing upgrades, now that we use a separate cache,
+	// but we don't want to refresh when doing a complete upgrade.
+	// (only in minimal aka download-only mode)
+	if (!zypp_refresh_cache (job, zypp, do_refresh)) {
+		zypp_backend_finished_error (job,
+				PK_ERROR_ENUM_REPO_NOT_AVAILABLE,
+				"Cannot refresh package cache.");
 		return;
 	}
 	zypp_build_pool (zypp, TRUE);
@@ -4166,7 +4349,7 @@ pk_backend_upgrade_system (PkBackend *backend,
 			   const gchar *distro_id,
 			   PkUpgradeKindEnum upgrade_kind)
 {
-   zypp_backend_job_thread_create (job, backend_upgrade_system_thread, NULL, NULL);
+   zypp_backend_job_thread_create (job, backend_upgrade_system_thread, NULL, NULL, true);
 }
 
 static void
