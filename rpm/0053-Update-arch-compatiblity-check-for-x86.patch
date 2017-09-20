@@ -1,0 +1,37 @@
+From 365161555a1ebe54c7f26ce78de1eda7d1aec92b Mon Sep 17 00:00:00 2001
+From: Thomas Perl <m@thp.io>
+Date: Fri, 13 Feb 2015 10:06:07 +0100
+Subject: [PATCH 53/65] Update arch compatiblity check for x86
+
+---
+ backends/zypp/pk-backend-zypp.cpp | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
+index 9a5049602..168a8ce5e 100644
+--- a/backends/zypp/pk-backend-zypp.cpp
++++ b/backends/zypp/pk-backend-zypp.cpp
+@@ -1393,8 +1393,18 @@ zypp_refresh_meta_and_cache (RepoManager &manager, RepoInfo &repo, bool force =
+ static gboolean
+ system_and_package_are_x86 (Arch arch)
+ {
+-	// i486, i586, i686, ... all should be considered the same arch for our comparison
+-	return ((arch == Arch_i486 || arch == Arch_i586 ) && ZConfig::defaultSystemArchitecture() == Arch_i686 );
++	const Arch &systemArch = ZConfig::defaultSystemArchitecture();
++
++	// For x86 (32 and 64 bit), the system architectures are backwards-compatible
++	if (systemArch == Arch_i586) {
++		return (arch == Arch_i486);
++	} else if (systemArch == Arch_i686) {
++		return (arch == Arch_i486 || arch == Arch_i586);
++	} else if (systemArch == Arch_x86_64) {
++		return (arch == Arch_i486 || arch == Arch_i586 || arch == Arch_i686);
++	}
++
++	return FALSE;
+ }
+ 
+ static gboolean
+-- 
+2.13.5
+

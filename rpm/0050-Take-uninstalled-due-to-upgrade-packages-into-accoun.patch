@@ -1,0 +1,33 @@
+From 4793f11ca119f60dd2902635da55ff6053ef49d9 Mon Sep 17 00:00:00 2001
+From: Sami Kananoja <sami.kananoja@jollamobile.com>
+Date: Fri, 22 Aug 2014 14:15:30 +0300
+Subject: [PATCH 50/65] Take uninstalled due to upgrade packages into account
+ in size calculations
+
+---
+ backends/zypp/pk-backend-zypp.cpp | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
+index 4fa75225a..265a398cf 100644
+--- a/backends/zypp/pk-backend-zypp.cpp
++++ b/backends/zypp/pk-backend-zypp.cpp
+@@ -1859,12 +1859,11 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo
+ 				priv->exec.total_downloads += 1;
+ 				// TODO: Only count download bytes if updates were not yet downloaded
+ 				total_download_bytes += it->resolvable()->downloadSize();
+-			} else if (it->status().isToBeUninstalled() &&
+-					!it->status().isToBeUninstalledDueToUpgrade()) {
+-				if (!only_download) {
++			} else if (!only_download && it->status().isToBeUninstalled()) {
++				if (!it->status().isToBeUninstalledDueToUpgrade()) {
+ 					priv->exec.total_removals += 1;
+-					total_remove_bytes += it->resolvable()->installSize();
+ 				}
++				total_remove_bytes += it->resolvable()->installSize();
+ 			}
+ 		}
+ 
+-- 
+2.13.5
+

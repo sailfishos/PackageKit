@@ -1,0 +1,71 @@
+From f15df653c5711929a4cd46ee99c82cfe52042c8a Mon Sep 17 00:00:00 2001
+From: Thomas Perl <thomas.perl@jollamobile.com>
+Date: Thu, 22 Aug 2013 10:05:52 +0200
+Subject: [PATCH 12/65] Add libzypp authentication report handler
+
+To avoid infinite loops in the authentication phase for repos for
+which no authentication exists, connect an authentication handler
+that logs the authentication request and then fails (as we do not
+have or want interactive authentication in the zypp backend).
+
+[backends] zypp: Handle authentication reports by failing immediately
+---
+ backends/zypp/pk-backend-zypp.cpp | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
+index 7adaab887..14bb72845 100644
+--- a/backends/zypp/pk-backend-zypp.cpp
++++ b/backends/zypp/pk-backend-zypp.cpp
+@@ -427,6 +427,16 @@ struct MediaChangeReportReceiver : public zypp::callback::ReceiveReport<zypp::me
+ 	}
+ };
+ 
++struct AuthenticationReportReceiver : public zypp::callback::ReceiveReport<zypp::media::AuthenticationReport>, ZyppBackendReceiver
++{
++	virtual bool prompt (const zypp::Url &url, const std::string &description, zypp::media::AuthData &auth_data)
++	{
++		MIL << "needs authentication:" << url << std::endl;
++		/* No interactive authentication supported - admit failure */
++		return false;
++	}
++};
++
+ struct ProgressReportReceiver : public zypp::callback::ReceiveReport<zypp::ProgressReport>, ZyppBackendReceiver
+ {
+         virtual void start (const zypp::ProgressData &progress)
+@@ -510,6 +520,7 @@ class EventDirector
+                 ZyppBackend::KeyRingReportReceiver _keyRingReport;
+ 		ZyppBackend::DigestReportReceiver _digestReport;
+                 ZyppBackend::MediaChangeReportReceiver _mediaChangeReport;
++		ZyppBackend::AuthenticationReportReceiver _authenticationReport;
+                 ZyppBackend::ProgressReportReceiver _progressReport;
+ 
+ 	public:
+@@ -523,6 +534,7 @@ class EventDirector
+                         _keyRingReport.connect ();
+ 			_digestReport.connect ();
+                         _mediaChangeReport.connect ();
++			_authenticationReport.connect ();
+                         _progressReport.connect ();
+ 		}
+ 
+@@ -536,6 +548,7 @@ class EventDirector
+                         _keyRingReport._job = job;
+ 			_digestReport._job = job;
+                         _mediaChangeReport._job = job;
++			_authenticationReport._job = job;
+                         _progressReport._job = job;	
+ 		}
+ 
+@@ -549,6 +562,7 @@ class EventDirector
+                         _keyRingReport.disconnect ();
+ 			_digestReport.disconnect ();
+                         _mediaChangeReport.disconnect ();
++			_authenticationReport.disconnect ();
+                         _progressReport.disconnect ();
+ 		}
+ };
+-- 
+2.13.5
+

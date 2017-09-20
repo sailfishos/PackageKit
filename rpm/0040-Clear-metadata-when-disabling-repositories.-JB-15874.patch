@@ -1,0 +1,24 @@
+From b2dce1a6f5d51e1482a6c908300f61c9eed554fe Mon Sep 17 00:00:00 2001
+From: Thomas Perl <thomas.perl@jolla.com>
+Date: Tue, 11 Mar 2014 13:20:52 +0100
+Subject: [PATCH 40/65] Clear metadata when disabling repositories. JB#15874
+
+---
+ backends/zypp/pk-backend-zypp.cpp | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
+index e69dcee2f..aa443bfd8 100644
+--- a/backends/zypp/pk-backend-zypp.cpp
++++ b/backends/zypp/pk-backend-zypp.cpp
+@@ -3341,6 +3341,7 @@ pk_backend_repo_enable (PkBackend *backend, PkBackendJob *job, const gchar *rid,
+ 		repo.setEnabled (enabled);
+ 		manager.modifyRepository (rid, repo);
+ 		if (!enabled) {
++			manager.cleanMetadata (repo);
+ 			Repository repository = sat::Pool::instance ().reposFind (repo.alias ());
+ 			repository.eraseFromPool ();
+ 		}
+-- 
+2.13.5
+

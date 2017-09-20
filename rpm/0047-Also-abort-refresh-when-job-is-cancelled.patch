@@ -1,0 +1,50 @@
+From 1c587937378eb7fc68787c2f8da0a62ed4e485bd Mon Sep 17 00:00:00 2001
+From: Thomas Perl <thomas.perl@jolla.com>
+Date: Mon, 12 May 2014 19:02:38 +0200
+Subject: [PATCH 47/65] Also abort refresh when job is cancelled
+
+---
+ backends/zypp/pk-backend-zypp.cpp | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)
+
+diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
+index a4e7e9c7a..36e71e6a6 100644
+--- a/backends/zypp/pk-backend-zypp.cpp
++++ b/backends/zypp/pk-backend-zypp.cpp
+@@ -2001,6 +2001,11 @@ zypp_refresh_cache (PkBackendJob *job, ZYpp::Ptr zypp, gboolean force)
+ 	for (list <RepoInfo>::iterator it = repos.begin(); it != repos.end(); ++it, i++) {
+ 		RepoInfo repo (*it);
+ 
++		if (currentJobIsCancelled()) {
++			PK_ZYPP_LOG("Aborting refresh, as job is cancelled");
++			return FALSE;
++		}
++
+ 		if (!zypp_is_valid_repo (job, repo))
+ 			return FALSE;
+ 		if (pk_backend_job_get_is_error_set (job))
+@@ -2558,12 +2563,17 @@ backend_refresh_cache_thread (PkBackendJob *job, GVariant *params, gpointer user
+ 	ZyppJob zjob(job);
+ 	ZYpp::Ptr zypp = zjob.get_zypp();
+ 
+-	if (zypp == NULL){
+-		pk_backend_job_finished (job);
+-		return;
++	if (zypp) {
++		zypp_refresh_cache (job, zypp, TRUE);
++
++		if (zjob.isCancelled()) {
++			PK_ZYPP_LOG("Package refresh was cancelled on user request");
++			pk_backend_job_error_code (job,
++					PK_ERROR_ENUM_TRANSACTION_CANCELLED,
++					"Refresh was cancelled");
++		}
+ 	}
+ 
+-	zypp_refresh_cache (job, zypp, TRUE);
+ 	pk_backend_job_finished (job);
+ }
+ 
+-- 
+2.13.5
+

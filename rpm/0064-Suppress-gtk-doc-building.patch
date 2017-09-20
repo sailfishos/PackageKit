@@ -1,0 +1,78 @@
+From d2f6006154be6e321980d34a726cdf3f7545b912 Mon Sep 17 00:00:00 2001
+From: Andrew Branson <andrew.branson@jollamobile.com>
+Date: Thu, 13 Oct 2016 09:48:20 +0200
+Subject: [PATCH 64/65] Suppress gtk-doc building
+
+---
+ Makefile.am  | 4 +---
+ autogen.sh   | 4 ++--
+ configure.ac | 6 +-----
+ 3 files changed, 4 insertions(+), 10 deletions(-)
+
+diff --git a/Makefile.am b/Makefile.am
+index 999cd6e9c..87125cb6b 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -12,8 +12,7 @@ SUBDIRS = 						\
+ 	client						\
+ 	tools						\
+ 	backends					\
+-	contrib						\
+-	docs
++	contrib
+ 
+ clean-local :
+ 	rm -f *~
+@@ -39,7 +38,6 @@ MAINTAINERCLEANFILES =					\
+ 	$(srcdir)/mkinstalldirs				\
+ 	$(srcdir)/omf.make				\
+ 	$(srcdir)/xmldocs.make				\
+-	$(srcdir)/gtk-doc.make				\
+ 	$(srcdir)/ChangeLog				\
+ 	`find "$(srcdir)" -type f -name Makefile -print` \
+ 	`find "$(srcdir)" -type f -name Makefile.in -print` \
+diff --git a/autogen.sh b/autogen.sh
+index 41481400f..a981607d2 100755
+--- a/autogen.sh
++++ b/autogen.sh
+@@ -31,11 +31,11 @@ fi
+     exit 1
+ }
+ 
+-(cd $srcdir && gtkdocize) || exit 1
++#(cd $srcdir && gtkdocize) || exit 1
+ (cd $srcdir && autoreconf --force --install) || exit 1
+ (cd $srcdir && intltoolize) || exit 1
+ 
+-conf_flags="--enable-gtk-doc"
++#conf_flags="--enable-gtk-doc"
+ 
+ if test x$NOCONFIGURE = x; then
+   echo Running $srcdir/configure $conf_flags "$@" ...
+diff --git a/configure.ac b/configure.ac
+index b76aeb23e..6c6750545 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -77,7 +77,7 @@ AM_GLIB_GNU_GETTEXT
+ AC_DEFINE_UNQUOTED([GETTEXT_PACKAGE],["$GETTEXT_PACKAGE"],[gettext domain])
+ 
+ # set up gtk-doc
+-GTK_DOC_CHECK([1.11],[--flavour no-tmpl])
++#GTK_DOC_CHECK([1.11],[--flavour no-tmpl])
+ 
+ AC_PATH_PROG(GLIB_GENMARSHAL, glib-genmarshal)
+ AC_PATH_PROG(GLIB_MKENUMS, glib-mkenums)
+@@ -766,10 +766,6 @@ dnl ---------------------------------------------------------------------------
+ AC_CONFIG_FILES([
+ Makefile
+ etc/Makefile
+-docs/Makefile
+-docs/api/Makefile
+-docs/api/dbus/Makefile
+-docs/api/version.xml
+ contrib/Makefile
+ contrib/browser-plugin/Makefile
+ contrib/gstreamer-plugin/Makefile
+-- 
+2.13.5
+
