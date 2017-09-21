@@ -1,0 +1,28 @@
+From b69298aa129a48d0c256e987f3ada38e3ca9169b Mon Sep 17 00:00:00 2001
+From: Juha Kallioinen <juha.kallioinen@jolla.com>
+Date: Fri, 18 Apr 2014 22:40:31 +0000
+Subject: [PATCH 45/65] accept i486 packages - JB#18558
+
+Signed-off-by: Juha Kallioinen <juha.kallioinen@jolla.com>
+---
+ backends/zypp/pk-backend-zypp.cpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
+index 83d0d6391..fc1de5290 100644
+--- a/backends/zypp/pk-backend-zypp.cpp
++++ b/backends/zypp/pk-backend-zypp.cpp
+@@ -1339,8 +1339,8 @@ zypp_refresh_meta_and_cache (RepoManager &manager, RepoInfo &repo, bool force =
+ static gboolean
+ system_and_package_are_x86 (Arch arch)
+ {
+-	// i586, i686, ... all should be considered the same arch for our comparison
+-	return ( arch == Arch_i586 && ZConfig::defaultSystemArchitecture() == Arch_i686 );
++	// i486, i586, i686, ... all should be considered the same arch for our comparison
++	return ((arch == Arch_i486 || arch == Arch_i586 ) && ZConfig::defaultSystemArchitecture() == Arch_i686 );
+ }
+ 
+ static gboolean
+-- 
+2.13.5
+

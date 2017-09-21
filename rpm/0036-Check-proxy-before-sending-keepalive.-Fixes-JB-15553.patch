@@ -1,0 +1,25 @@
+From 209e35193d3e907f3b2749d1ce87be486bc6b57e Mon Sep 17 00:00:00 2001
+From: Thomas Perl <thomas.perl@jolla.com>
+Date: Mon, 10 Feb 2014 16:25:20 +0100
+Subject: [PATCH 36/65] Check proxy before sending keepalive. Fixes JB#15553
+
+---
+ src/pk-engine.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pk-engine.c b/src/pk-engine.c
+index cf683794a..68fed0808 100644
+--- a/src/pk-engine.c
++++ b/src/pk-engine.c
+@@ -310,7 +310,7 @@ mce_keepalive_thread_func (gpointer data)
+ 		}
+ 
+ 		// Send the keepalive message once we have a proxy available
+-		if (!mce_keepalive_send (proxy, MCE_CPU_KEEPALIVE_START_REQ)) {
++		if (proxy && !mce_keepalive_send (proxy, MCE_CPU_KEEPALIVE_START_REQ)) {
+ 			// mce has gone away (due to an upgrade?) - remove proxy
+ 			g_warning ("Lost connection to mce");
+ 			g_object_unref (proxy);
+-- 
+2.13.5
+

@@ -1,0 +1,30 @@
+From 00da98a22838d1375408db08ac80f43877a3d147 Mon Sep 17 00:00:00 2001
+From: Thomas Perl <thomas.perl@jollamobile.com>
+Date: Wed, 2 Oct 2013 10:52:03 +0200
+Subject: [PATCH 13/65] Remove '-y' assignment from "only-download"
+
+The '-y' option is already used for "noninteractive", so we cannot
+use it for "only-download" as well (otherwise it would not be possible
+to have a non-interactive installation of packages).
+
+Upstream bug: https://bugs.freedesktop.org/show_bug.cgi?id=70025
+---
+ client/pk-console.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/client/pk-console.c b/client/pk-console.c
+index ef9b2ab3a..3ccc34ece 100644
+--- a/client/pk-console.c
++++ b/client/pk-console.c
+@@ -1368,7 +1368,7 @@ main (int argc, char *argv[])
+ 		{ "noninteractive", 'y', 0, G_OPTION_ARG_NONE, &noninteractive,
+ 			/* command line argument, do we ask questions */
+ 			_("Install the packages without asking for confirmation"), NULL },
+-		{ "only-download", 'y', 0, G_OPTION_ARG_NONE, &only_download,
++		{ "only-download", 'd', 0, G_OPTION_ARG_NONE, &only_download,
+ 			/* command line argument, do we just download or apply changes */
+ 			_("Prepare the transaction by downloading pakages only"), NULL },
+ 		{ "background", 'n', 0, G_OPTION_ARG_NONE, &background,
+-- 
+2.13.5
+

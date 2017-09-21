@@ -1,0 +1,42 @@
+From d63e0b2b62632cc97e394b9ff53aa54cf4b5afe9 Mon Sep 17 00:00:00 2001
+From: Thomas Perl <thomas.perl@jolla.com>
+Date: Thu, 15 May 2014 11:17:31 +0200
+Subject: [PATCH 48/65] Allow searching for capabilities
+
+---
+ backends/zypp/pk-backend-zypp.cpp | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
+index 36e71e6a6..4fa75225a 100644
+--- a/backends/zypp/pk-backend-zypp.cpp
++++ b/backends/zypp/pk-backend-zypp.cpp
+@@ -3279,7 +3279,9 @@ backend_find_packages_thread (PkBackendJob *job, GVariant *params, gpointer user
+ 	vector<sat::Solvable> v;
+ 
+ 	PoolQuery q;
+-	q.addString( search ); // may be called multiple times (OR'ed)
++	Capability cap (search);
++	std::string name = cap.detail().name().asString();
++	q.addString( name ); // may be called multiple times (OR'ed)
+ 	q.setCaseSensitive( true );
+ 	q.setMatchSubstring();
+ 
+@@ -3290,6 +3292,14 @@ backend_find_packages_thread (PkBackendJob *job, GVariant *params, gpointer user
+ 		q.addKind( ResKind::pattern );
+ 		q.addKind( ResKind::srcpackage );
+ 		q.addAttribute( sat::SolvAttr::name );
++
++		// Search also Provides: to allow querying for "debuginfo(build-id)=<hash>"
++		q.addDependency( sat::SolvAttr::provides,
++				 name,
++				 cap.detail().op(),
++				 cap.detail().ed(),
++				 Arch(cap.detail().arch()) );
++
+ 		// Note: The query result is NOT sorted packages first, then srcpackage.
+ 		// If that's necessary you need to sort the vector accordongly or use
+ 		// two separate queries.
+-- 
+2.13.5
+
