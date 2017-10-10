@@ -1,0 +1,143 @@
+From ad9a1c3ec16056cc99b7aa07f10ea9254b964080 Mon Sep 17 00:00:00 2001
+From: Thomas Perl <m@thp.io>
+Date: Fri, 13 Feb 2015 14:06:54 +0100
+Subject: [PATCH 35/40] Fix download size calculation, prepare for cache sizes
+
+Squashed:
+Fixed some size computations. Contributes to JB#31091
+---
+ backends/zypp/pk-backend-zypp.cpp | 91 +++++++++++++++++++++++++++++++--------
+ 1 file changed, 74 insertions(+), 17 deletions(-)
+
+diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
+index 9f57ce7d2..484da77c6 100644
+--- a/backends/zypp/pk-backend-zypp.cpp
++++ b/backends/zypp/pk-backend-zypp.cpp
+@@ -98,6 +98,9 @@
+ #include <zypp/target/rpm/librpmDb.h>
+ #include <zypp/ui/Selectable.h>
+ 
++#define __STDC_FORMAT_MACROS
++#include <inttypes.h>
++
+ using namespace std;
+ using namespace zypp;
+ using zypp::filesystem::PathInfo;
+@@ -1855,6 +1858,8 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo
+ 		int64_t total_download_bytes = 0;
+ 		int64_t total_install_bytes = 0;
+ 		int64_t total_remove_bytes = 0;
++		int64_t total_cached_bytes = 0;
++		int64_t biggest_package_download = 0;
+ 
+ 		// Get number of installations and removals for overall progress
+ 		priv->exec.reset();
+@@ -1870,8 +1875,18 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo
+ 					total_install_bytes += it->resolvable()->installSize();
+ 				}
+ 				priv->exec.total_downloads += 1;
+-				// TODO: Only count download bytes if updates were not yet downloaded
+-				total_download_bytes += it->resolvable()->downloadSize();
++
++				Package::constPtr pkg = asKind<Package>(it->resolvable());
++				if (pkg) {
++					if (pkg->isCached()) {
++						total_cached_bytes += pkg->downloadSize();
++					} else {
++						total_download_bytes += pkg->downloadSize();
++						if (pkg->downloadSize() > biggest_package_download) {
++							biggest_package_download = pkg->downloadSize();
++						}
++					}
++				}
+ 			} else if (!only_download && it->status().isToBeUninstalled()) {
+ 				if (!it->status().isToBeUninstalledDueToUpgrade()) {
+ 					priv->exec.total_removals += 1;
+@@ -1882,27 +1897,69 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo
+ 
+ 		PK_ZYPP_LOG("Before commit: %d downloads, %d installs, %d removals",
+ 				priv->exec.total_downloads, priv->exec.total_installs, priv->exec.total_removals);
+-		PK_ZYPP_LOG("Byte sizes: %ld download, %ld install, %ld remove",
+-				total_download_bytes, total_install_bytes, total_remove_bytes);
+-
+-		int64_t required_space_bytes = (total_download_bytes + total_install_bytes - total_remove_bytes);
+-		// XXX: This assumes package downloads also end up in rootfs, and that
+-		// installed files will all take up space in the rootfs only
+-		int64_t free_space_bytes = get_free_disk_space("/");
+-		int64_t remaining_space_bytes = free_space_bytes - required_space_bytes;
++		PK_ZYPP_LOG("Byte sizes: "
++				"%" PRId64 " download, "
++				"%" PRId64 " install, "
++				"%" PRId64 " remove, "
++				"%" PRId64 " cached",
++				total_download_bytes,
++				total_install_bytes,
++				total_remove_bytes,
++				total_cached_bytes);
++
++		int64_t required_space_bytes_download = total_download_bytes;
++		int64_t required_space_bytes_installation = (type == UPGRADE) ? MAX(0, total_install_bytes - total_remove_bytes)
++		                                                              // it is the worst case if the biggest package gets installed last
++		                                                              : (biggest_package_download + MAX(0, total_install_bytes - total_remove_bytes));
++
++		// UPGRADE packages are downloaded to the /home partition, but are installed to rootfs
++		int64_t free_space_bytes_download = (type == UPGRADE) ? get_free_disk_space("/home")
++		                                                      : get_free_disk_space("/");
++		int64_t free_space_bytes_installation = get_free_disk_space("/");
++
++		int64_t remaining_space_bytes_download = free_space_bytes_download - required_space_bytes_download;	
++		int64_t remaining_space_bytes_installation = free_space_bytes_installation - required_space_bytes_installation;
++
++		PK_ZYPP_LOG("Download space "
++				"required %" PRId64 " bytes, "
++				"available %" PRId64 " bytes",
++				required_space_bytes_download,
++				free_space_bytes_download);
++		PK_ZYPP_LOG("Installation space "
++				"required %" PRId64 " bytes, "
++				"available %" PRId64 " bytes",
++				required_space_bytes_installation,
++				free_space_bytes_installation);
++
++		if (remaining_space_bytes_download < 0) {
++			// Not enough space for download
++			pk_backend_job_error_code (job, PK_ERROR_ENUM_NO_SPACE_ON_DEVICE,
++					"Not enough space for download. Need %.2f MiB, have %.2f MiB.\n",
++					(float)required_space_bytes_download / (1024. * 1024),
++					(float)free_space_bytes_download / (1024. * 1024));
++		}
+ 
+-		if (remaining_space_bytes < 0) {
+-			// Not enough space
++		// the download size does not add to the size required for installation, because zypp removes each
++		// downloaded package from cache immediately after successful installation
++		if (remaining_space_bytes_installation < 0) {
++			// Not enough space for installation
+ 			pk_backend_job_error_code (job, PK_ERROR_ENUM_NO_SPACE_ON_DEVICE,
+-					"Not enough space. Need %.2f MiB, have %.2f MiB.\n",
+-					(float)required_space_bytes / (1024. * 1024),
+-					(float)free_space_bytes / (1024. * 1024));
++					"Not enough space for installation. Need %.2f MiB, have %.2f MiB.\n",
++					(float)required_space_bytes_installation / (1024. * 1024),
++			(float)free_space_bytes_installation / (1024. * 1024));
+ 			goto exit;
+ 		}
+ 
+ 		if (pk_bitfield_contain (transaction_flags, PK_TRANSACTION_FLAG_ENUM_SIMULATE)) {
+-			gchar *msg = g_strdup_printf("DOWNLOAD=%ld;INSTALL=%ld;REMOVE=%ld",
+-					total_download_bytes, total_install_bytes, total_remove_bytes);
++			gchar *msg = g_strdup_printf(
++					"DOWNLOAD=%" PRId64 ";"
++					"INSTALL=%" PRId64 ";"
++					"REMOVE=%" PRId64 ";"
++					"CACHED=%" PRId64,
++					total_download_bytes,
++					total_install_bytes,
++					total_remove_bytes,
++					total_cached_bytes);
+ 			PK_ZYPP_LOG("Reporting upgrade size: '%s'", msg);
+ 			pk_backend_job_error_code (job, PK_ERROR_ENUM_NO_DISTRO_UPGRADE_DATA, "%s\n", msg);
+ 			g_free(msg);
+-- 
+2.13.6
+

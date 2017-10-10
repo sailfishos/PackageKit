@@ -1,0 +1,24 @@
+From e7f9253169c749166a7f7a7640cad813d0d839ea Mon Sep 17 00:00:00 2001
+From: Thomas Perl <thomas.perl@jolla.com>
+Date: Wed, 2 Apr 2014 16:14:57 +0200
+Subject: [PATCH 29/40] Mark job as finished when exception occurs
+
+---
+ backends/zypp/pk-backend-zypp.cpp | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
+index b745e24dc..69eca70d3 100644
+--- a/backends/zypp/pk-backend-zypp.cpp
++++ b/backends/zypp/pk-backend-zypp.cpp
+@@ -243,6 +243,7 @@ zypp_backend_job_thread_wrapper (PkBackendJob *job, GVariant *params,
+ 				ex.asUserString().c_str());
+ 		pk_backend_job_error_code (job, PK_ERROR_ENUM_INTERNAL_ERROR,
+ 				ex.asUserString().c_str());
++		pk_backend_job_finished (job);
+ 	}
+ 
+ 	delete data;
+-- 
+2.13.6
+
