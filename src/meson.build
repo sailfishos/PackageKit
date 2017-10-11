@@ -61,6 +61,11 @@ packagekit_direct_exec = executable(
   ]
 )
 
+extra_dependencies = []
+if (get_option('mce'))
+  extra_dependencies += mce_dep
+endif
+
 packagekitd_exec = executable(
   'packagekitd',
   'pk-main.c',
@@ -73,7 +78,7 @@ packagekitd_exec = executable(
     polkit_dep,
     gmodule_dep,
     sqlite3_dep,
-  ],
+  ] + extra_dependencies,
   install: true,
   install_dir: get_option('libexecdir'),
   c_args: [
@@ -108,7 +113,7 @@ pk_self_test_exec = executable(
     polkit_dep,
     gmodule_dep,
     sqlite3_dep,
-  ],
+  ] + extra_dependencies,
   c_args: [
     '-DPK_BUILD_DAEMON=1',
     '-DPK_DB_DIR="."',

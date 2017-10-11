@@ -57,6 +57,11 @@ if get_option('daemon_tests')
   add_project_arguments ('-DPK_ENABLE_DAEMON_TESTS=1', language: 'c')
 endif
 
+if get_option('mce')
+  add_project_arguments ('-DPK_BUILD_MCE=1', language: 'c')
+  mce_dep = dependency('mce')
+endif
+
 if dependency('ply-boot-client', version: '>=0.9.5', required: false).found()
   add_project_arguments ('-DPLYMOUTH_0_9_5=1', language: 'c')
 endif
