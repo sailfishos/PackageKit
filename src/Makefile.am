@@ -11,6 +11,7 @@ AM_CPPFLAGS =						\
 	$(PYTHON_CFLAGS)				\
 	$(ELOGIND_CFLAGS)				\
 	$(SYSTEMD_CFLAGS)				\
+	$(MCE_CFLAGS)					\
 	-DPACKAGE_LOCALE_DIR=\"$(localedir)\"		\
 	-DBINDIR=\"$(bindir)\"				\
 	-DSBINDIR=\"$(sbindir)\"			\
@@ -102,7 +103,8 @@ packagekit_direct_LDADD =				\
 	$(GIO_LIBS)					\
 	$(ARCHIVE_LIBS)					\
 	$(ELOGIND_LIBS)					\
-	$(SYSTEMD_LIBS)
+	$(SYSTEMD_LIBS)					\
+	$(MCE_LIBS)
 
 packagekit_direct_LDFLAGS =				\
 	$(PIE_LDFLAGS)					\
@@ -131,7 +133,8 @@ packagekitd_LDADD =					\
 	$(GIO_LIBS)					\
 	$(ARCHIVE_LIBS)					\
 	$(ELOGIND_LIBS)					\
-	$(SYSTEMD_LIBS)
+	$(SYSTEMD_LIBS)					\
+	$(MCE_LIBS)
 
 packagekitd_LDFLAGS =					\
 	$(PIE_LDFLAGS)					\
@@ -157,7 +160,8 @@ pk_self_test_LDADD =					\
 	$(GIO_LIBS)					\
 	$(ARCHIVE_LIBS)					\
 	$(ELOGIND_LIBS)					\
-	$(SYSTEMD_LIBS)
+	$(SYSTEMD_LIBS)					\
+	$(MCE_LIBS)
 
 pk_self_test_CPPFLAGS =					\
 	$(AM_CPPFLAGS)					\
