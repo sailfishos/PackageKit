@@ -1,0 +1,92 @@
+From 6e2267c8f137f919aa1bbed99fd322e3a3d48cc3 Mon Sep 17 00:00:00 2001
+From: Thomas Perl <thomas.perl@jolla.com>
+Date: Wed, 12 Feb 2014 11:08:47 +0100
+Subject: [PATCH 26/40] Fix possible memory leaks with heap-allocated items
+ vector
+
+In some cases (exception handling / early return), delete might not
+be called on the items vector. As there's no need for the vector to
+be alive for longer than the function duration, just make it a local
+variable on the stack.
+---
+ backends/zypp/pk-backend-zypp.cpp | 16 ++++++----------
+ 1 file changed, 6 insertions(+), 10 deletions(-)
+
+diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
+index c64985b8d..013635ca8 100644
+--- a/backends/zypp/pk-backend-zypp.cpp
++++ b/backends/zypp/pk-backend-zypp.cpp
+@@ -2828,7 +2828,7 @@ backend_install_packages_thread (PkBackendJob *job, GVariant *params, gpointer u
+ 		ResPool pool = zypp_build_pool (zypp, TRUE);
+ 		PoolStatusSaver saver;
+ 		pk_backend_job_set_percentage (job, 10);
+-		vector<PoolItem> *items = new vector<PoolItem> ();
++		vector<PoolItem> items;
+ 
+ 		guint to_install = 0;
+ 		for (guint i = 0; package_ids[i]; i++) {
+@@ -2839,7 +2839,7 @@ backend_install_packages_thread (PkBackendJob *job, GVariant *params, gpointer u
+ 			PoolItem item(solvable);
+ 			// set status to ToBeInstalled
+ 			item.status ().setToBeInstalled (ResStatus::USER);
+-			items->push_back (item);
++			items.push_back (item);
+ 		
+ 		}
+ 			
+@@ -2856,14 +2856,12 @@ backend_install_packages_thread (PkBackendJob *job, GVariant *params, gpointer u
+ 		// PK_INFO_ENUM_DOWNLOADING | INSTALLING) for each package.
+ 		if (!zypp_perform_execution (job, zypp, INSTALL, FALSE, transaction_flags)) {
+ 			// reset the status of the marked packages
+-			for (vector<PoolItem>::iterator it = items->begin (); it != items->end (); ++it) {
++			for (vector<PoolItem>::iterator it = items.begin (); it != items.end (); ++it) {
+ 				it->statusReset ();
+ 			}
+-			delete (items);
+ 			pk_backend_job_finished (job);
+ 			return;
+ 		}
+-		delete (items);
+ 		// Rebuild pool after installation
+ 		// TODO: PLU This does not help. Installed has still wrong status
+ 		zypp_build_pool (zypp, TRUE, TRUE);
+@@ -2923,7 +2921,7 @@ backend_remove_packages_thread (PkBackendJob *job, GVariant *params, gpointer us
+ 	gboolean autoremove = false;
+ 	gboolean allow_deps = false;
+ 	gchar **package_ids;
+-	vector<PoolItem> *items = new vector<PoolItem> ();
++	vector<PoolItem> items;
+ 
+ 	g_variant_get(params, "(t^a&sbb)",
+ 		      &transaction_flags,
+@@ -2962,7 +2960,7 @@ backend_remove_packages_thread (PkBackendJob *job, GVariant *params, gpointer us
+ 		PoolItem item(solvable);
+ 		if (solvable.isSystem ()) {
+ 			item.status ().setToBeUninstalled (ResStatus::USER);
+-			items->push_back (item);
++			items.push_back (item);
+ 		} else {
+ 			item.status ().resetTransact (ResStatus::USER);
+ 		}
+@@ -2974,17 +2972,15 @@ backend_remove_packages_thread (PkBackendJob *job, GVariant *params, gpointer us
+ 	{
+ 		if (!zypp_perform_execution (job, zypp, REMOVE, TRUE, transaction_flags)) {
+ 			//reset the status of the marked packages
+-			for (vector<PoolItem>::iterator it = items->begin (); it != items->end (); ++it) {
++			for (vector<PoolItem>::iterator it = items.begin (); it != items.end (); ++it) {
+ 				it->statusReset();
+ 			}
+-			delete (items);
+ 			zypp_backend_finished_error (
+ 				job, PK_ERROR_ENUM_TRANSACTION_ERROR,
+ 				"Couldn't remove the package");
+ 			return;
+ 		}
+ 
+-		delete (items);
+ 		pk_backend_job_set_percentage (job, 100);
+ 
+ 	} catch (const repo::RepoNotFoundException &ex) {
+-- 
+2.13.6
+

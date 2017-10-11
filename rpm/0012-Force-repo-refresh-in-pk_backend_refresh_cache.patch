@@ -1,0 +1,42 @@
+From a347b8c9aef4615b25d23d1f9a0936b9ee0dda58 Mon Sep 17 00:00:00 2001
+From: Thomas Perl <thomas.perl@jollamobile.com>
+Date: Tue, 13 Aug 2013 13:36:33 +0200
+Subject: [PATCH 12/40] Force repo refresh in pk_backend_refresh_cache
+
+This is in line with what most other backends do: When a refresh
+of the cache is requested, we want to force a cache update. The
+command-line "pkcon" client doesn't provide a way to set force.
+
+[backends] zypp: Force repository refresh
+---
+ backends/zypp/pk-backend-zypp.cpp | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
+index 7721c770e..28f5e3401 100644
+--- a/backends/zypp/pk-backend-zypp.cpp
++++ b/backends/zypp/pk-backend-zypp.cpp
+@@ -2192,11 +2192,6 @@ pk_backend_get_distro_upgrades (PkBackend *backend, PkBackendJob *job)
+ static void
+ backend_refresh_cache_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
+ {
+-	gboolean force;
+-	g_variant_get (params, "(b)",
+-		       &force);
+-
+-	MIL << force << endl;
+ 	ZyppJob zjob(job);
+ 	ZYpp::Ptr zypp = zjob.get_zypp();
+ 
+@@ -2205,7 +2200,7 @@ backend_refresh_cache_thread (PkBackendJob *job, GVariant *params, gpointer user
+ 		return;
+ 	}
+ 
+-	zypp_refresh_cache (job, zypp, force);
++	zypp_refresh_cache (job, zypp, TRUE);
+ 	pk_backend_job_finished (job);
+ }
+ 
+-- 
+2.13.6
+
