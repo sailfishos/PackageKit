@@ -97,7 +97,7 @@ pk_dbus_get_uid (PkDbus *dbus, const gchar *sender)
  *
  * Return value: the PID, or %G_MAXUINT if it could not be obtained
  **/
-static guint
+guint
 pk_dbus_get_pid (PkDbus *dbus, const gchar *sender)
 {
 	guint pid = G_MAXUINT;
