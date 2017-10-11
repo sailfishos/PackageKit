@@ -56,6 +56,8 @@ gboolean	 pk_dbus_connect		(PkDbus		*dbus,
 						 GError		**error);
 guint		 pk_dbus_get_uid		(PkDbus		*dbus,
 						 const gchar	*sender);
+guint		 pk_dbus_get_pid		(PkDbus		*dbus,
+						 const gchar	*sender);
 gchar		*pk_dbus_get_cmdline		(PkDbus		*dbus,
 						 const gchar	*sender);
 gchar		*pk_dbus_get_session		(PkDbus		*dbus,
