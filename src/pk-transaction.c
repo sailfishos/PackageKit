@@ -36,6 +36,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <syslog.h>
+#include <grp.h>
 
 #include <glib/gstdio.h>
 #include <glib/gi18n.h>
@@ -2248,6 +2249,44 @@ out:
 }
 
 /**
+ * Built-in policy configuration until we get a newer polkit with JS-based
+ * rules that can handle fine-grained policy decisions based on the sender
+ **/
+static gboolean
+pk_transaction_builtin_policy_allow (guint pid)
+{
+	gboolean result = FALSE;
+	struct stat sender_stat;
+	gchar *path = g_strdup_printf ("/proc/%u", pid);
+
+	// Check if a systemd-style system update is in progress
+	// http://www.freedesktop.org/wiki/Software/systemd/SystemUpdates/
+	struct stat update_stat;
+	if (stat("/system-update", &update_stat) == 0) {
+		g_debug ("System update in progress - allowing request");
+		result = TRUE;
+	}
+
+	// Check effective group ID of sender process
+	if (stat(path, &sender_stat) == 0) {
+		struct group *sender_group = getgrgid (sender_stat.st_gid);
+		if (sender_group) {
+			g_debug ("Group of sender process: '%s'", sender_group->gr_name);
+			if (g_strcmp0 (sender_group->gr_name, "privileged") == 0) {
+				g_debug ("Allowing from privileged process");
+				result = TRUE;
+			}
+		}
+	}
+
+	g_free (path);
+
+	g_debug ("%s -> %s", __func__, result ? "true" : "false");
+
+	return result;
+}
+
+/**
  * pk_transaction_authorize_actions:
  *
  * Param actions is an array of policy actions that shall be authorized. They
@@ -2496,6 +2535,8 @@ pk_transaction_obtain_authorization (PkTransaction *transaction,
 				 PK_TRANSACTION_FLAG_ENUM_ONLY_DOWNLOAD) ||
 			pk_bitfield_contain (transaction->priv->cached_transaction_flags,
 				 PK_TRANSACTION_FLAG_ENUM_SIMULATE) ||
+			pk_transaction_builtin_policy_allow (pk_dbus_get_pid (priv->dbus,
+				 priv->sender)) ||
 			priv->skip_auth_check == TRUE) {
 		g_debug ("No authentication required");
 		pk_transaction_set_state (transaction, PK_TRANSACTION_STATE_READY);

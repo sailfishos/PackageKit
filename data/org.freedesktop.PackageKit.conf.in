@@ -11,10 +11,12 @@
   <!-- Only user @PACKAGEKIT_USER@ can own the PackageKit service -->
   <policy user="@PACKAGEKIT_USER@">
     <allow own="org.freedesktop.PackageKit"/>
+    <allow send_destination="org.freedesktop.PackageKit"/>
+    <allow receive_sender="org.freedesktop.PackageKit"/>
   </policy>
 
- <!-- Allow anyone to call into the service - we'll reject callers using PolicyKit -->
-  <policy context="default">
+ <!-- Allow users belonging to sailfish-system to call into the service - we'll reject callers using PolicyKit -->
+  <policy group="sailfish-system">
     <allow send_destination="org.freedesktop.PackageKit"
            send_interface="org.freedesktop.PackageKit"/>
     <allow send_destination="org.freedesktop.PackageKit"
