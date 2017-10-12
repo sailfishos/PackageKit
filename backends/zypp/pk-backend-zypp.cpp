@@ -159,6 +159,21 @@ guint _dl_count = 0;
 guint _dl_progress = 0;
 guint _dl_status = 0;
 
+/*
+ * Test if this is pattern and all its dependencies are installed
+ */
+static gboolean
+zypp_satisfied_pattern(const sat::Solvable &solv)
+{
+	gboolean satisfied = FALSE;
+
+	if (isKind<Pattern>(solv)) {
+		PoolItem patt = PoolItem(solv);
+		satisfied = patt.isSatisfied();
+	}
+	return satisfied;
+}
+
 /**
  * Build a package_id from the specified resolvable.  The returned
  * gchar * should be freed with g_free ().
@@ -168,16 +183,23 @@ zypp_build_package_id_from_resolvable (const sat::Solvable &resolvable)
 {
 	gchar *package_id;
 	const char *arch;
-
-	if (isKind<SrcPackage>(resolvable))
-		arch = "source";
-	else
-		arch = resolvable.arch ().asString ().c_str ();
-
+	string name = resolvable.name ();
 	string repo = resolvable.repository ().alias();
-	if (resolvable.isSystem())
-		repo = "installed";
-	package_id = pk_package_id_build (resolvable.name ().c_str (),
+
+	if (isKind<Pattern>(resolvable)) {
+		name = "pattern:" + resolvable.name ();
+		arch = "noarch";
+		if (zypp_satisfied_pattern(resolvable))
+			repo = "installed";
+	} else if (isKind<SrcPackage>(resolvable)) {
+		arch = "source";
+	} else {
+		arch = resolvable.arch ().asString ().c_str ();
+		if (resolvable.isSystem())
+			repo = "installed";
+	}
+
+	package_id = pk_package_id_build (name.c_str (),
 					  resolvable.edition ().asString ().c_str (),
 					  arch, repo.c_str ());
 	
@@ -697,7 +719,7 @@ zypp_is_valid_repo (PkBackendJob *job, RepoInfo repo)
  * and ones found in the enabled repositories.
  */
 ResPool
-zypp_build_pool (ZYpp::Ptr zypp, gboolean include_local)
+zypp_build_pool (ZYpp::Ptr zypp, gboolean include_local, gboolean force = FALSE)
 {
 	static gboolean repos_loaded = FALSE;
 
@@ -719,8 +741,8 @@ zypp_build_pool (ZYpp::Ptr zypp, gboolean include_local)
 		}
 	}
 
-	// we only load repositories once.
-	if (repos_loaded)
+	// we only load repositories once unless forced to redo it
+	if (!force && repos_loaded)
 		return zypp->pool();
 
 	// Add resolvables from enabled repos
@@ -834,7 +856,20 @@ zypp_get_packages_by_name (const gchar *package_name,
 			   vector<sat::Solvable> &result,
 			   gboolean include_local = TRUE)
 {
-	ui::Selectable::Ptr sel( ui::Selectable::get( kind, package_name ) );
+	const gchar *search_name;
+	// Patterns are stored in zypper without "pattern:" prefix
+	// We want that to be specified when searching patterns
+	if (kind == ResKind::pattern) {
+		if (g_str_has_prefix (package_name, "pattern:"))
+			search_name = package_name + strlen("pattern:");
+		else {
+			return;
+		}
+	}
+	else
+		search_name = package_name;
+
+	ui::Selectable::Ptr sel( ui::Selectable::get( kind, search_name ) );
 	if ( sel ) {
 		if ( ! sel->installedEmpty() ) {
 			for_( it, sel->installedBegin(), sel->installedEnd() )
@@ -916,14 +951,21 @@ zypp_get_package_by_id (const gchar *package_id)
 	const gchar *arch = id_parts[PK_PACKAGE_ID_ARCH];
 	if (!arch)
 		arch = "noarch";
+	const gchar *name = id_parts[PK_PACKAGE_ID_NAME];
+	const gchar *search_name;
 	bool want_source = !g_strcmp0 (arch, "source");
-	
+	bool want_pattern = g_str_has_prefix (name, "pattern:");
+	if (want_pattern)
+		search_name = name + strlen("pattern:");  // skipp pattern
+	else
+		search_name = name;
+
 	sat::Solvable package;
 
 	ResPool pool = ResPool::instance();
 
 	// Iterate over the resolvables and mark the one we want to check its dependencies
-	for (ResPool::byName_iterator it = pool.byNameBegin (id_parts[PK_PACKAGE_ID_NAME]);
+	for (ResPool::byName_iterator it = pool.byNameBegin (search_name);
 	     it != pool.byNameEnd (id_parts[PK_PACKAGE_ID_NAME]); ++it) {
 		
 		sat::Solvable pkg = it->satSolvable();
@@ -931,6 +973,11 @@ zypp_get_package_by_id (const gchar *package_id)
 
 		if (want_source && !isKind<SrcPackage>(pkg)) {
 			//MIL << "not a src package\n";
+			continue;
+		}
+
+		if (want_pattern && !isKind<Pattern>(pkg)) {
+			//MIL << "not a pattern\n";
 			continue;
 		}
 
@@ -1183,6 +1230,7 @@ zypp_emit_filtered_packages_in_list (PkBackendJob *job, PkBitfield filters, cons
 		if (it->isSystem() ||
 		    zypp_filter_solvable (filters, *it))
 			continue;
+		/* TO DO. Make this faster. we loop installed hundreds of times */
 
 		match = FALSE;
 		for (sat_it_t i = installed.begin (); !match && i != installed.end (); i++) {
@@ -2848,6 +2896,9 @@ backend_install_packages_thread (PkBackendJob *job, GVariant *params, gpointer u
 			return;
 		}
 
+		// Rebuild pool after installation
+		// TODO: PLU This does not help. Installed has still wrong status
+		zypp_build_pool (zypp, TRUE, TRUE);
 		pk_backend_job_set_percentage (job, 100);
 
 	} catch (const Exception &ex) {
@@ -3108,6 +3159,9 @@ backend_find_packages_thread (PkBackendJob *job, GVariant *params, gpointer user
 	}
 
 	search = values[0];  //Fixme - support the possible multiple values (logical OR search)
+	if (g_str_has_prefix (search, "pattern:"))
+		search += strlen("pattern:");  // skipp pattern
+
 	role = pk_backend_job_get_role(job);
 
 	pk_backend_job_set_status (job, PK_STATUS_ENUM_QUERY);
@@ -3124,6 +3178,7 @@ backend_find_packages_thread (PkBackendJob *job, GVariant *params, gpointer user
 	case PK_ROLE_ENUM_SEARCH_NAME:
 		zypp_build_pool (zypp, TRUE); // seems to be necessary?
 		q.addKind( ResKind::package );
+		q.addKind( ResKind::pattern );
 		q.addKind( ResKind::srcpackage );
 		q.addAttribute( sat::SolvAttr::name );
 		// Note: The query result is NOT sorted packages first, then srcpackage.
@@ -3133,6 +3188,7 @@ backend_find_packages_thread (PkBackendJob *job, GVariant *params, gpointer user
 	case PK_ROLE_ENUM_SEARCH_DETAILS:
 		zypp_build_pool (zypp, TRUE); // seems to be necessary?
 		q.addKind( ResKind::package );
+		q.addKind( ResKind::pattern );
 		//q.addKind( ResKind::srcpackage );
 		q.addAttribute( sat::SolvAttr::name );
 		q.addAttribute( sat::SolvAttr::description );
@@ -3144,6 +3200,7 @@ backend_find_packages_thread (PkBackendJob *job, GVariant *params, gpointer user
 
 		zypp_build_pool (zypp, TRUE);
 		q.addKind( ResKind::package );
+		q.addKind( ResKind::pattern );
 		q.addAttribute( sat::SolvAttr::name );
 		q.addAttribute( sat::SolvAttr::description );
 		q.addAttribute( sat::SolvAttr::filelist );
@@ -3397,11 +3454,11 @@ pk_backend_get_files(PkBackend *backend, PkBackendJob *job, gchar **package_ids)
 static void
 backend_get_packages_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
 {
-	MIL << endl;
-
 	PkBitfield _filters;
 	g_variant_get (params, "(t)",
 		       &_filters);
+
+	MIL << pk_filter_bitfield_to_string(_filters) << endl;
 
 	ZyppJob zjob(job);
 	ZYpp::Ptr zypp = zjob.get_zypp();
@@ -3416,6 +3473,10 @@ backend_get_packages_thread (PkBackendJob *job, GVariant *params, gpointer user_
 	zypp_build_pool (zypp, TRUE);
 	ResPool pool = ResPool::instance ();
 	for (ResPool::byKind_iterator it = pool.byKindBegin (ResKind::package); it != pool.byKindEnd (ResKind::package); ++it) {
+		v.push_back (it->satSolvable ());
+	}
+	/* Get also patterns */
+	for (ResPool::byKind_iterator it = pool.byKindBegin (ResKind::pattern); it != pool.byKindEnd (ResKind::pattern); ++it) {
 		v.push_back (it->satSolvable ());
 	}
 
