@@ -4,6 +4,7 @@
  * Copyright (c) 2007 Boyd Timothy <btimothy@gmail.com>
  * Copyright (c) 2007-2008 Stefan Haas <shaas@suse.de>
  * Copyright (c) 2007-2008 Scott Reeves <sreeves@novell.com>
+ * Copyright (c) 2013 Jolla Ltd.
  *
  * Licensed under the GNU General Public License Version 2
  *
@@ -1486,8 +1487,11 @@ zypp_backend_pool_item_notify (PkBackendJob  *job,
 static gboolean
 zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gboolean force, PkBitfield transaction_flags)
 {
-	MIL << force << " " << pk_filter_bitfield_to_string(transaction_flags) << endl;
+	gchar *flags = pk_transaction_flag_bitfield_to_string(transaction_flags);
 	gboolean ret = FALSE;
+
+	MIL << force << " " << flags << endl;
+	g_free(flags);
 	
 	PkBackend *backend = PK_BACKEND(pk_backend_job_get_backend(job));
 	
@@ -3566,17 +3570,47 @@ backend_upgrade_system_thread (PkBackendJob *job,
 			       gpointer user_data)
 {
 	PkBitfield transaction_flags = 0;
+	PkUpgradeKindEnum upgrade_kind = PK_UPGRADE_KIND_ENUM_UNKNOWN;
+	const gchar *distro_id = NULL;
+
 	ZyppJob zjob (job);
 	set<PoolItem> candidates;
 
 	g_variant_get (params, "(t&su)",
 		       &transaction_flags,
-		       NULL,
-		       NULL);
+		       &distro_id,
+		       &upgrade_kind);
 
 	ZYpp::Ptr zypp = zjob.get_zypp ();
 	if (zypp == NULL) {
 		return;
+	}
+
+	/**
+	 * Possible values for upgrade_kind:
+	 *
+	 *  - PK_UPGRADE_KIND_ENUM_MINIMAL
+	 *    Only download upgrades, do not install them
+	 *
+	 *  - PK_UPGRADE_KIND_ENUM_DEFAULT (default if nothing else specified)
+	 *    Download and install upgrades
+	 *
+	 *  - PK_UPGRADE_KIND_ENUM_COMPLETE
+	 *    Download and install upgrades, install named pattern (distroId)
+	 **/
+	switch (upgrade_kind) {
+		case PK_UPGRADE_KIND_ENUM_MINIMAL:
+			MIL << "Downloading upgrades (no installation)" << std::endl;
+			pk_bitfield_add(transaction_flags,
+					PK_TRANSACTION_FLAG_ENUM_ONLY_DOWNLOAD);
+			break;
+		case PK_UPGRADE_KIND_ENUM_COMPLETE:
+			MIL << "Installing upgrades and named pattern:" << distro_id << std::endl;
+			break;
+		case PK_UPGRADE_KIND_ENUM_DEFAULT:
+		default:
+			MIL << "Downloading and installing upgrades" << std::endl;
+			break;
 	}
 
 	/* refresh the repos before checking for updates. */
@@ -3597,7 +3631,7 @@ backend_upgrade_system_thread (PkBackendJob *job,
 
 	PoolStatusSaver saver;
 
-	zypp_perform_execution (job, zypp, UPGRADE_SYSTEM, FALSE, transaction_flags);
+	zypp_perform_execution (job, zypp, UPGRADE_SYSTEM, TRUE, transaction_flags);
 
 	zypp->resolver ()->setUpgradeMode (FALSE);
 }
