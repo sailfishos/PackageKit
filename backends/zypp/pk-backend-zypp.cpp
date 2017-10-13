@@ -215,6 +215,7 @@ static PkBackendZYppPrivate *priv = 0;
 
 // FIXME: should merge with _dl_progress / _dl_count
 /* Overall progress update helpers */
+void zypp_backend_download_finished(PkBackendJob *job);
 void zypp_backend_installation_finished(PkBackendJob *job);
 void zypp_backend_removal_finished(PkBackendJob *job);
 
@@ -437,6 +438,7 @@ struct DownloadProgressReportReceiver : public zypp::callback::ReceiveReport<zyp
 	{
 		MIL << resolvable << " " << error << " " << _package_id << std::endl;
 		update_sub_percentage (100, PK_STATUS_ENUM_DOWNLOAD);
+		zypp_backend_download_finished(_job);
 		// FIXME: uncomment when ExecCounter and _dl_progress are unified
 		//pk_backend_job_set_percentage(_job, (double)++_dl_progress / _dl_count * 100);
 		clear_package_id ();
@@ -585,13 +587,15 @@ struct ExecCounters {
 		, current_installs(0)
 		, total_removals(0)
 		, current_removals(0)
+		, total_downloads(0)
+		, current_downloads(0)
 	{
 	}
 
 	void update(PkBackendJob *job)
 	{
-		int total = (total_installs + total_removals);
-		int current = (current_installs + current_removals);
+		int total = (total_downloads + total_installs + total_removals);
+		int current = (current_downloads + current_installs + current_removals);
 
 		if (current > total) {
 			MIL << "current > total!" << std::endl;
@@ -608,12 +612,16 @@ struct ExecCounters {
 		current_installs = 0;
 		total_removals = 0;
 		current_removals = 0;
+		total_downloads = 0;
+		current_downloads = 0;
 	}
 
 	int total_installs;
 	int current_installs;
 	int total_removals;
 	int current_removals;
+	int total_downloads;
+	int current_downloads;
 };
 
 class PkBackendZYppPrivate {
@@ -625,6 +633,12 @@ class PkBackendZYppPrivate {
 	pthread_mutex_t zypp_mutex;
 	ExecCounters exec;
 };
+
+void zypp_backend_download_finished(PkBackendJob *job)
+{
+	priv->exec.current_downloads += 1;
+	priv->exec.update(job);
+}
 
 void zypp_backend_installation_finished(PkBackendJob *job)
 {
@@ -1695,13 +1709,19 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo
 			}
 
 			if (it->status().isToBeInstalled()) {
-				priv->exec.total_installs += 1;
+				if (!only_download) {
+					priv->exec.total_installs += 1;
+				}
+				priv->exec.total_downloads += 1;
 			} else if (it->status().isToBeUninstalled() &&
 					!it->status().isToBeUninstalledDueToUpgrade()) {
-				priv->exec.total_removals += 1;
+				if (!only_download) {
+					priv->exec.total_removals += 1;
+				}
 			}
 		}
 		MIL << "Summary before commit: " << std::endl;
+		MIL << " total downloads = " << priv->exec.total_downloads << std::endl;
 		MIL << " total installs = " << priv->exec.total_installs << std::endl;
 		MIL << " total removals = " << priv->exec.total_removals << std::endl;
 
