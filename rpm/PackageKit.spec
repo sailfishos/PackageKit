@@ -1,8 +1,3 @@
-%define glib2_version           2.20.0
-%define dbus_version            1.1.3
-%define dbus_glib_version       0.74
-%define policykit_version       0.92
-
 # Vendor-specific values displayed in PackageKit user interfaces
 %define vendor_name             Mer
 %define vendor_bugs             http://bugs.merproject.org/
@@ -10,70 +5,65 @@
 
 Summary:   Package management service
 Name:      PackageKit
-Version:   0.8.9
+Version:   1.1.7
 Release:   1
-License:   GPLv2+
+License:   GPLv2+ and LGPLv2.1+
 Group:     System/Libraries
-URL:       http://www.packagekit.org
-Source0:   http://www.packagekit.org/releases/%{name}-%{version}.tar.gz
+URL:       https://www.freedesktop.org/software/PackageKit/
+Source0:   http://www.freedesktop.org/software/PackageKit/releases/%{name}-%{version}.tar.xz
 Source100: rpm-db-clean.service
 Source101: pk-rpm-db-clean
 Source102: pk-zypp-cache.conf
 
 Patch1:  0001-Suppress-gtk-doc-building.patch
-Patch2:  0002-Add-support-for-CPU-keepalive-during-transaction.patch
-Patch3:  0003-Fix-memory-leak-when-running-plugins.patch
-Patch4:  0004-Builtin-policy-and-whitelist.-Contributes-to-JB-1477.patch
-Patch5:  0005-zypp-support-no_proxy-for-pkcon-and-zypp-backend.patch
-Patch6:  0006-Remove-y-assignment-from-only-download.patch
+Patch2:  0002-Comments-out-c-11-14-checks.patch
+Patch3:  0003-Comment-out-upstream-usage-of-newer-zypp.patch
+Patch4:  0004-Add-support-for-CPU-keepalive-during-transaction.patch
+Patch5:  0005-Partly-revert-trivial-Remove-some-unused-functions-o.patch
+Patch6:  0006-Builtin-policy-and-whitelist.-Contributes-to-JB-1477.patch
 Patch7:  0007-Add-l10n-handler-for-missing-roles.patch
-Patch8:  0008-scan-desktop-files-Don-t-scan-manually-installed-fil.patch
-Patch9:  0009-Improve-progress-output-on-non-80x25-terminals.patch
-Patch10: 0010-Add-pattern-support.patch
-Patch11: 0011-zypp-backend-Implement-upgrade-system-like-zypper-du.patch
-Patch12: 0012-Force-repo-refresh-in-pk_backend_refresh_cache.patch
-Patch13: 0013-zypp-Backend-Keep-track-of-overall-upgrade-install-p.patch
-Patch14: 0014-zypp-Backend-Look-for-patterns-matching-distroId-and.patch
-Patch15: 0015-zypp-Backend-Download-progress-reporting.patch
-Patch16: 0016-Add-libzypp-authentication-report-handler.patch
-Patch17: 0017-zypp-Check-free-space-before-executing-transaction.patch
-Patch18: 0018-zypp-Log-messages-into-systemd-journal.patch
-Patch19: 0019-zypp-Report-progress-for-download-and-install-separa.patch
-Patch20: 0020-zypp-Detect-RPM-database-corruption-for-initializeTa.patch
-Patch21: 0021-Don-t-resolve-URL-in-zypp_is_changeable_media.patch
-Patch22: 0022-zypp-Really-really-refresh-when-force-is-set.patch
-Patch23: 0023-zypp-Remove-old-leftover-PK_TMP_DIR-on-localinstall.patch
-Patch24: 0024-zypp-Implement-single-repo-refresh-feature.patch
-Patch25: 0025-Validate-RPM-arch-before-local-install.-Fixes-JB-156.patch
-Patch26: 0026-Fix-possible-memory-leaks-with-heap-allocated-items-.patch
-Patch27: 0027-Clear-metadata-when-disabling-repositories.-JB-15874.patch
-Patch28: 0028-Handle-and-log-C-exceptions-in-all-threads.patch
-Patch29: 0029-Mark-job-as-finished-when-exception-occurs.patch
-Patch30: 0030-Allow-scheduled-rebuilddb-runs-on-next-boot.patch
-Patch31: 0031-Allow-cancelling-of-downloads.patch
-Patch32: 0032-Also-abort-refresh-when-job-is-cancelled.patch
-Patch33: 0033-Allow-searching-for-capabilities.patch
-Patch34: 0034-Report-distro-upgrade-size-in-custom-request.patch
-Patch35: 0035-Fix-download-size-calculation-prepare-for-cache-size.patch
-Patch36: 0036-Separate-dist-upgrade-cache-directory-from-main-cach.patch
-Patch37: 0037-Force-an-implicit-cache-refresh-before-checking-the-.patch
-Patch38: 0038-make-sure-that-the-custom-config-is-set-for-synchron.patch
-Patch39: 0039-Fixed-implementation-of-finding-newest-package-while.patch
-Patch40: 0040-Revert-dependency-on-libzypp-version-14-as-we-cannot.patch
+Patch8:  0008-Improve-progress-output-on-non-80x25-terminals.patch
+Patch9:  0009-Add-pattern-support.patch
+Patch10: 0010-zypp-backend-Implement-upgrade-system-like-zypper-du.patch
+Patch11: 0011-Force-repo-refresh-in-pk_backend_refresh_cache.patch
+Patch12: 0012-zypp-Backend-Keep-track-of-overall-upgrade-install-p.patch
+Patch13: 0013-zypp-Backend-Look-for-patterns-matching-distroId-and.patch
+Patch14: 0014-zypp-Backend-Download-progress-reporting.patch
+Patch15: 0015-Add-libzypp-authentication-report-handler.patch
+Patch16: 0016-zypp-Check-free-space-before-executing-transaction.patch
+Patch17: 0017-zypp-Log-messages-into-systemd-journal.patch
+Patch18: 0018-zypp-Report-progress-for-download-and-install-separa.patch
+Patch19: 0019-zypp-Detect-RPM-database-corruption-for-initializeTa.patch
+Patch20: 0020-zypp-Really-really-refresh-when-force-is-set.patch
+Patch21: 0021-zypp-Remove-old-leftover-PK_TMP_DIR-on-localinstall.patch
+Patch22: 0022-zypp-Implement-single-repo-refresh-feature.patch
+Patch23: 0023-Validate-RPM-arch-before-local-install.-Fixes-JB-156.patch
+Patch24: 0024-Fix-possible-memory-leaks-with-heap-allocated-items-.patch
+Patch25: 0025-Clear-metadata-when-disabling-repositories.-JB-15874.patch
+Patch26: 0026-Handle-and-log-C-exceptions-in-all-threads.patch
+Patch27: 0027-Allow-scheduled-rebuilddb-runs-on-next-boot.patch
+Patch28: 0028-Allow-cancelling-of-downloads.patch
+Patch29: 0029-Also-abort-refresh-when-job-is-cancelled.patch
+Patch30: 0030-Allow-searching-for-capabilities.patch
+Patch31: 0031-Report-distro-upgrade-size-in-custom-request.patch
+Patch32: 0032-Fix-download-size-calculation-prepare-for-cache-size.patch
+Patch33: 0033-Separate-dist-upgrade-cache-directory-from-main-cach.patch
+Patch34: 0034-Force-an-implicit-cache-refresh-before-checking-the-.patch
+Patch35: 0035-make-sure-that-the-custom-config-is-set-for-synchron.patch
+Patch36: 0036-Fixed-implementation-of-finding-newest-package-while.patch
+Patch37: 0037-Revert-dependency-on-libzypp-version-14-as-we-cannot.patch
+Patch38: 0038-PK_FILTER_ENUM_ARCH-_NOT_ARCH-to-filter-based-on-com.patch
 
 Requires: PackageKit-zypp = %{version}-%{release}
 Requires: shared-mime-info
 Requires: connman
 
-BuildRequires: glib2-devel >= %{glib2_version}
-BuildRequires: dbus-devel  >= %{dbus_version}
-BuildRequires: dbus-glib-devel >= %{dbus_glib_version}
+BuildRequires: glib2-devel >= 2.46
 BuildRequires: pam-devel
 BuildRequires: sqlite-devel
 BuildRequires: connman-devel
-BuildRequires: polkit-devel >= %{policykit_version}
+BuildRequires: polkit-devel >= 0.98
 BuildRequires: libtool
-BuildRequires: python-devel
 BuildRequires: perl(XML::Parser)
 BuildRequires: intltool
 BuildRequires: gettext
@@ -84,8 +74,11 @@ BuildRequires: bzip2-devel
 BuildRequires: pkgconfig(systemd)
 BuildRequires: pkgconfig(mce)
 BuildRequires: gobject-introspection-devel
-# FIXME, blows up, as this piece of shit downloads stuff from sourceforge
-#BuildRequires: libxslt
+BuildRequires: vala-devel
+
+Obsoletes: PackageKit-python
+Obsoletes: PackageKit-debug-install
+Obsoletes: PackageKit-plugin-devel
 
 %description
 PackageKit is a D-Bus abstraction layer that allows the session user
@@ -113,55 +106,23 @@ Requires: %{name} = %{version}-%{release}
 Summary: GLib libraries for accessing PackageKit
 License: LGPLv2+
 Group: System/Libraries
-Requires: dbus >= %{dbus_version}
 Requires: %{name} = %{version}-%{release}
-Obsoletes: PackageKit-libs < %{version}-%{release}
-Provides: PackageKit-libs = %{version}-%{release}
 
 %description glib
 GLib libraries for accessing PackageKit.
-
-%package python
-Summary: Python libraries for accessing PackageKit
-License: LGPLv2+
-Group: System/Libraries
-Requires: %{name} = %{version}-%{release}
-
-%description python
-Python libraries for accessing PackageKit.
-
-%package debug-install
-Summary: Facility to install debugging packages using PackageKit
-Group: System/Base
-Requires: %{name} = %{version}-%{release}
-Obsoletes: PackageKit-debuginfo-install <= 0.5.2-0.1.20090902git.fc12
-
-%description debug-install
-Provides facility to install debugging packages using PackageKit.
 
 %package glib-devel
 Summary: GLib Libraries and headers for PackageKit
 License: LGPLv2+
 Group: Development/Libraries
 Requires: %{name} = %{version}-%{release}
-Requires: dbus-devel >= %{dbus_version}
 Requires: pkgconfig
 Requires: sqlite-devel
 Requires: PackageKit-glib = %{version}-%{release}
-Obsoletes: PackageKit-devel < %{version}-%{release}
-Provides: PackageKit-devel = %{version}-%{release}
 
 %description glib-devel
 GLib headers and libraries for PackageKit.
 
-
-%package plugin-devel
-Summary: Headers to compile out of tree PackageKit plugins
-Group: Development/Libraries
-Requires: %{name} = %{version}-%{release}
-
-%description plugin-devel
-Headers to compile out of tree PackageKit plugins.
 
 %package command-not-found
 Summary: Ask the user to install command line programs automatically
@@ -177,6 +138,7 @@ using PackageKit.
 %setup -q -n %{name}-%{version}/upstream
 %patch1 -p1
 %patch2 -p1
+# This one can be removed when libzypp is upgraded
 %patch3 -p1
 %patch4 -p1
 %patch5 -p1
@@ -211,11 +173,9 @@ using PackageKit.
 %patch34 -p1
 %patch35 -p1
 %patch36 -p1
+# This one can be removed when libzypp is upgraded
 %patch37 -p1
 %patch38 -p1
-%patch39 -p1
-# This one can be removed when libzypp is upgraded
-%patch40 -p1
 
 
 %build
@@ -235,7 +195,6 @@ for aclocal_file in $(find . -type f -a -name aclocal.m4); do
     )
 done
 
-export LIBS=-ldbus-glib-1
 ./autogen.sh \
         --program-prefix= --prefix=/usr \
         --exec-prefix=/usr \
@@ -332,10 +291,6 @@ update-mime-database %{_datadir}/mime &> /dev/null || :
 %dir %{_datadir}/PackageKit
 %dir %{_datadir}/PackageKit/helpers
 %dir %{_sysconfdir}/PackageKit
-%dir %{_sysconfdir}/PackageKit/events
-%dir %{_sysconfdir}/PackageKit/events/post-transaction.d
-%dir %{_sysconfdir}/PackageKit/events/pre-transaction.d
-%{_sysconfdir}/PackageKit/events/*.d/README
 %dir %{_localstatedir}/lib/PackageKit
 %dir %{_localstatedir}/cache/PackageKit
 %ghost %verify(not md5 size mtime) %{_localstatedir}/cache/PackageKit/groups.sqlite
@@ -347,23 +302,21 @@ update-mime-database %{_datadir}/mime &> /dev/null || :
 %dir %{_datadir}/PackageKit/icons
 %{_datadir}/PackageKit/helpers/test_spawn/*
 %{_datadir}/polkit-1/actions/*.policy
-%{_datadir}/mime/packages/packagekit-*.xml
+%{_datadir}/polkit-1/rules.d/org.freedesktop.packagekit.rules
 %{_datadir}/PackageKit/pk-upgrade-distro.sh
 %{_libexecdir}/packagekitd
 %{_bindir}/pkmon
 %{_bindir}/pkcon
-%{_bindir}/pkgenpack
-%{_bindir}/packagekit-bugreport.sh
 %exclude %{_libdir}/libpackagekit*.so.*
 %{_libdir}/packagekit-backend/libpk_backend_test_*.so
 %ghost %verify(not md5 size mtime) %{_localstatedir}/lib/PackageKit/transactions.db
 %{_datadir}/dbus-1/system-services/*.service
-%{_libdir}/packagekit-plugins/*.so
 %{_datadir}/dbus-1/interfaces/*.xml
 /lib/systemd/system/packagekit-offline-update.service
-%{_libexecdir}/pk-clear-offline-update
+/lib/systemd/system/packagekit.service
+/lib/systemd/system/system-update.target.wants/packagekit-offline-update.service
 %{_libexecdir}/pk-offline-update
-%{_libexecdir}/pk-trigger-offline-update
+%{_libexecdir}/packagekit-direct
 
 %files docs
 %defattr(-,root,root,-)
@@ -372,7 +325,7 @@ update-mime-database %{_datadir}/mime &> /dev/null || :
 
 %files zypp
 %defattr(-,root,root,-)
-%doc README AUTHORS  COPYING
+%doc COPYING
 %{_libdir}/packagekit-backend/libpk_backend_zypp.so
 %{_libexecdir}/pk-rpm-db-clean
 %{_unitdir}/rpm-db-clean.service
@@ -380,23 +333,12 @@ update-mime-database %{_datadir}/mime &> /dev/null || :
 
 %files glib
 %defattr(-,root,root,-)
-%doc README AUTHORS  COPYING
+%doc COPYING
 %{_libdir}/*packagekit-glib*.so.*
-
-%files python
-%defattr(-,root,root,-)
-%doc README AUTHORS  COPYING
-%dir %{python_sitelib}/packagekit
-%{python_sitelib}/packagekit/*py*
-
-%files debug-install
-%defattr(-,root,root,-)
-%doc README AUTHORS  COPYING
-%{_bindir}/pk-debuginfo-install
 
 %files command-not-found
 %defattr(-,root,root,-)
-%doc README AUTHORS  COPYING
+%doc COPYING
 %{_sysconfdir}/profile.d/*
 %{_libexecdir}/pk-command-not-found
 %config(noreplace) %{_sysconfdir}/PackageKit/CommandNotFound.conf
@@ -410,9 +352,3 @@ update-mime-database %{_datadir}/mime &> /dev/null || :
 %dir %{_includedir}/PackageKit/packagekit-glib2
 %{_includedir}/PackageKit/packagekit-glib*/*.h
 
-%files plugin-devel
-%defattr(-,root,root,-)
-%doc README AUTHORS  COPYING
-%dir %{_includedir}/PackageKit
-%{_includedir}/PackageKit/plugin/*.h
-%{_libdir}/pkgconfig/packagekit-plugin.pc

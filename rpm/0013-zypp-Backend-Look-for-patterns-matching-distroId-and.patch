@@ -1,0 +1,77 @@
+From 8e817e03f35b87f25bd36d6309ba376eba0cdd8c Mon Sep 17 00:00:00 2001
+From: Thomas Perl <thomas.perl@jollamobile.com>
+Date: Mon, 19 Aug 2013 12:48:50 +0200
+Subject: [PATCH 13/38] zypp Backend: Look for patterns matching distroId and
+ install
+
+When doing a dist-upgrade, the distroId can be the name of a pattern
+(without the "pattern:" prefix) to be marked for installation. If a
+pattern with that name is not found, the distroId is ignored and the
+dist-upgrade will be carried out as normal.
+
+For the pattern installation to take place, the type of dist-upgrade
+must be "complete". If the type of dist-upgrade is "minimal", and the
+pattern exists, the pattern's dependencies will be downloaded, but
+not installed (as "minimal" signifies "download only" in our case).
+
+[backends] zypp: Install all patterns matching distroId on upgrade
+---
+ backends/zypp/pk-backend-zypp.cpp | 26 ++++++++++++++++++++++++--
+ 1 file changed, 24 insertions(+), 2 deletions(-)
+
+diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
+index 3bce8138a..5d08d4423 100644
+--- a/backends/zypp/pk-backend-zypp.cpp
++++ b/backends/zypp/pk-backend-zypp.cpp
+@@ -3727,7 +3727,8 @@ backend_upgrade_system_thread (PkBackendJob *job, GVariant *params, gpointer use
+ {
+ 	DistUpgrade *parameters = static_cast<DistUpgrade *>(user_data);
+ 	PkBitfield transaction_flags = 0;
+-	std::string pattern_name = parameters->distro_id;
++	std::string pattern_name = std::string("pattern:") + std::string(parameters->distro_id);
++	bool install_pattern = false;
+ 
+ 	/**
+ 	 * Possible values for upgrade_kind:
+@@ -3746,9 +3747,12 @@ backend_upgrade_system_thread (PkBackendJob *job, GVariant *params, gpointer use
+ 			MIL << "Downloading upgrades (no installation)" << std::endl;
+ 			pk_bitfield_add(transaction_flags,
+ 					PK_TRANSACTION_FLAG_ENUM_ONLY_DOWNLOAD);
++			// Also try downloading dependencies of the pattern
++			install_pattern = true;
+ 			break;
+ 		case PK_UPGRADE_KIND_ENUM_COMPLETE:
+-			MIL << "Installing upgrades and named pattern:" << pattern_name << std::endl;
++			MIL << "Installing upgrades and " << pattern_name << std::endl;
++			install_pattern = true;
+ 			break;
+ 		case PK_UPGRADE_KIND_ENUM_DEFAULT:
+ 		default:
+@@ -3778,6 +3782,24 @@ backend_upgrade_system_thread (PkBackendJob *job, GVariant *params, gpointer use
+ 		// Must be called after zypp_refresh_cache to see locally-installed files
+ 		ResPool pool = zypp_build_pool (zypp, TRUE);
+ 
++		if (install_pattern) {
++			MIL << "Looking for pattern: " << pattern_name << std::endl;
++
++			vector<sat::Solvable> patterns;
++			zypp_get_packages_by_name(pattern_name.c_str(), ResKind::pattern, patterns);
++
++			if (patterns.size() == 0) {
++				MIL << "Pattern not found: " << pattern_name << " - ignoring" << std::endl;
++			}
++
++			vector<sat::Solvable>::iterator it;
++			for (it = patterns.begin(); it != patterns.end(); ++it) {
++				PoolItem pattern(*it);
++				MIL << "Marking " << pattern << " for installation" << std::endl;
++				pattern.status().setToBeInstalled (ResStatus::USER);
++			}
++		}
++
+ 		if (!zypp_perform_execution (job, zypp, UPGRADE, TRUE, transaction_flags)) {
+ 			MIL << "Upgrade execution failed" << std::endl;
+ 		}
+-- 
+2.13.6
+

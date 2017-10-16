@@ -1,0 +1,68 @@
+From df80ce65fbcef143d7acca1e16f2fdbe695ebe64 Mon Sep 17 00:00:00 2001
+From: Thomas Perl <thomas.perl@jolla.com>
+Date: Thu, 3 Apr 2014 09:36:52 +0200
+Subject: [PATCH 27/38] Allow scheduled rebuilddb runs on next boot
+
+---
+ backends/zypp/pk-backend-zypp.cpp | 23 +++++++++++++++++++++--
+ 1 file changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
+index 0b9b99c52..3b28379de 100644
+--- a/backends/zypp/pk-backend-zypp.cpp
++++ b/backends/zypp/pk-backend-zypp.cpp
+@@ -237,6 +237,25 @@ public:
+ };
+ 
+ static void
++zypp_schedule_rpmdb_rebuild()
++{
++	const char *PK_ZYPP_REBUILDDB_ON_BOOT =
++		"/var/lib/PackageKit/scheduled-rebuilddb";
++
++	PK_ZYPP_LOG("Scheduled rpmdb rebuild on next reboot");
++
++	// Touch the the rebuilddb schedule file, so that the init
++	// script will pick it up and rebuild the rpmdb on next boot
++	FILE *fp = fopen(PK_ZYPP_REBUILDDB_ON_BOOT, "w");
++	if (!fp) {
++		PK_ZYPP_LOG("Could not create %s", PK_ZYPP_REBUILDDB_ON_BOOT);
++		return;
++	}
++
++	fclose(fp);
++}
++
++static void
+ zypp_backend_job_thread_wrapper (PkBackendJob *job, GVariant *params,
+ 		gpointer user_data)
+ {
+@@ -250,6 +269,7 @@ zypp_backend_job_thread_wrapper (PkBackendJob *job, GVariant *params,
+ 				ex.asUserString().c_str());
+ 		pk_backend_job_error_code (job, PK_ERROR_ENUM_INTERNAL_ERROR,
+ 				ex.asUserString().c_str());
++		zypp_schedule_rpmdb_rebuild();
+ 	}
+ 
+ 	delete data;
+@@ -849,6 +869,7 @@ static bool
+ zypp_handle_broken_rpmdb (ZYpp::Ptr zypp, const Exception &e)
+ {
+ 	PK_ZYPP_LOG("Exception while initializing target (RPM DB broken?): %s", e.asUserString().c_str());
++	zypp_schedule_rpmdb_rebuild();
+ 
+ 	if (system("/usr/bin/db_recover -h /var/lib/rpm") == EXIT_SUCCESS) {
+ 		PK_ZYPP_LOG("RPM DB recovery successful.");
+@@ -865,9 +886,7 @@ zypp_handle_broken_rpmdb (ZYpp::Ptr zypp, const Exception &e)
+ 	}
+ 	else {
+ 		PK_ZYPP_LOG("RPM DB recovery failed.");
+-		// TODO should we fork and do rm -f /var/lib/rpm/__db*; rpm --rebuilddb here?
+ 		return false;
+-
+ 	}
+ }
+ 
+-- 
+2.13.6
+

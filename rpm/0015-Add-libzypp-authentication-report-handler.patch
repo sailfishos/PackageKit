@@ -1,0 +1,91 @@
+From bdb9805ad78e8db04b33d1111ec58b6c76a58c6d Mon Sep 17 00:00:00 2001
+From: Thomas Perl <thomas.perl@jollamobile.com>
+Date: Thu, 22 Aug 2013 10:05:52 +0200
+Subject: [PATCH 15/38] Add libzypp authentication report handler
+
+To avoid infinite loops in the authentication phase for repos for
+which no authentication exists, connect an authentication handler
+that logs the authentication request and then fails (as we do not
+have or want interactive authentication in the zypp backend).
+
+[backends] zypp: Handle authentication reports by failing immediately
+
+Squashed:
+
+zypp: Force failure for missing ssu.ini
+
+In cases of a missing ssu.ini, the do { ... } while (retry) loop in
+zypp/media/MediaCurl.cc does not exit, even if MediaCurl::authenticate()
+(and in turn our implementation of prompt()) returns false (=abort).
+
+To fix this, we now throw a libzypp zypp::media::MediaException in the
+prompt() function in order to force the backend and libzypp to give up.
+---
+ backends/zypp/pk-backend-zypp.cpp | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+
+diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
+index 44dd11868..5da451915 100644
+--- a/backends/zypp/pk-backend-zypp.cpp
++++ b/backends/zypp/pk-backend-zypp.cpp
+@@ -79,6 +79,7 @@
+ #include <zypp/base/LogControl.h>
+ #include <zypp/base/Logger.h>
+ #include <zypp/base/String.h>
++#include <zypp/media/MediaException.h>
+ #include <zypp/parser/IniDict.h>
+ #include <zypp/parser/ParseException.h>
+ #include <zypp/parser/ProductFileReader.h>
+@@ -451,6 +452,17 @@ struct MediaChangeReportReceiver : public zypp::callback::ReceiveReport<zypp::me
+ 	}
+ };
+ 
++struct AuthenticationReportReceiver : public zypp::callback::ReceiveReport<zypp::media::AuthenticationReport>, ZyppBackendReceiver
++{
++	virtual bool prompt (const zypp::Url &url, const std::string &description, zypp::media::AuthData &auth_data)
++	{
++		MIL << "needs authentication:" << url << std::endl;
++		/* No interactive authentication supported - admit failure */
++		ZYPP_THROW(zypp::media::MediaException("Authentication failed (is SSU set up correctly?)"));
++		return false; // Not reached
++	}
++};
++
+ struct ProgressReportReceiver : public zypp::callback::ReceiveReport<zypp::ProgressReport>, ZyppBackendReceiver
+ {
+         virtual void start (const zypp::ProgressData &progress)
+@@ -534,6 +546,7 @@ class EventDirector
+                 ZyppBackend::KeyRingReportReceiver _keyRingReport;
+ 		ZyppBackend::DigestReportReceiver _digestReport;
+                 ZyppBackend::MediaChangeReportReceiver _mediaChangeReport;
++		ZyppBackend::AuthenticationReportReceiver _authenticationReport;
+                 ZyppBackend::ProgressReportReceiver _progressReport;
+ 
+ 	public:
+@@ -547,6 +560,7 @@ class EventDirector
+                         _keyRingReport.connect ();
+ 			_digestReport.connect ();
+                         _mediaChangeReport.connect ();
++			_authenticationReport.connect ();
+                         _progressReport.connect ();
+ 		}
+ 
+@@ -560,6 +574,7 @@ class EventDirector
+                         _keyRingReport._job = job;
+ 			_digestReport._job = job;
+                         _mediaChangeReport._job = job;
++			_authenticationReport._job = job;
+                         _progressReport._job = job;	
+ 		}
+ 
+@@ -573,6 +588,7 @@ class EventDirector
+                         _keyRingReport.disconnect ();
+ 			_digestReport.disconnect ();
+                         _mediaChangeReport.disconnect ();
++			_authenticationReport.disconnect ();
+                         _progressReport.disconnect ();
+ 		}
+ };
+-- 
+2.13.6
+
