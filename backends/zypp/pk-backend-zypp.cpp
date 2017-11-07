@@ -1631,13 +1631,11 @@ zypp_filter_solvable (PkBitfield filters, const sat::Solvable &item)
 		if (i == PK_FILTER_ENUM_NOT_INSTALLED && item.isSystem ())
 			return TRUE;
 		if (i == PK_FILTER_ENUM_ARCH) {
-			if (item.arch () != ZConfig::defaultSystemArchitecture () &&
-			    item.arch () != "noarch")
+			if (! item.arch ().compatibleWith (ZConfig::instance().systemArchitecture ()))
 				return TRUE;
 		}
 		if (i == PK_FILTER_ENUM_NOT_ARCH) {
-			if (item.arch () == ZConfig::defaultSystemArchitecture () ||
-			    item.arch () == "noarch")
+			if (item.arch ().compatibleWith (ZConfig::instance().systemArchitecture ()))
 				return TRUE;
 		}
 		if (i == PK_FILTER_ENUM_SOURCE && !(isKind<SrcPackage>(item)))
