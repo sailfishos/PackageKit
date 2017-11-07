@@ -146,7 +146,7 @@ index 50096d7dc..11cd39a27 100644
 +zypp_set_custom_config_file ()
 +{
 +	// override configuration values to control cache directory
-+	setenv("ZYPP_CONF", "/etc/zypp/pk-zypp-cache.conf", 1);
++	setenv("ZYPP_CONF", "/etc/zypp/packagekit-zypp-override.conf", 1);
 +}
 +
  /*

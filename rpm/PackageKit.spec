@@ -13,7 +13,7 @@ URL:       https://www.freedesktop.org/software/PackageKit/
 Source0:   http://www.freedesktop.org/software/PackageKit/releases/%{name}-%{version}.tar.xz
 Source100: rpm-db-clean.service
 Source101: pk-rpm-db-clean
-Source102: pk-zypp-cache.conf
+Source102: packagekit-zypp-override.conf
 
 Patch1:  0001-Suppress-gtk-doc-building.patch
 Patch2:  0002-Comments-out-c-11-14-checks.patch
@@ -259,13 +259,11 @@ install -D -m 644 %{S:100} %{buildroot}%{_unitdir}/rpm-db-clean.service
 install -D -m 755 %{S:101} %{buildroot}%{_libexecdir}/pk-rpm-db-clean
 
 # install dist-upgrade libzypp config file
-install -D -m 644 %{S:102} %{buildroot}%{_sysconfdir}/zypp/pk-zypp-cache.conf
+install -D -m 644 %{S:102} %{buildroot}%{_sysconfdir}/zypp/packagekit-zypp-override.conf
 
-# add hardcoded arch entry to pk-zypp-cache.conf (JB#28277)
-# needed only for armv7hl-on-armv7l kernel
-%ifarch armv7hl
-echo "arch = armv7hl" >>%{buildroot}%{_sysconfdir}/zypp/pk-zypp-cache.conf
-%endif
+# add hardcoded arch entry to packagekit-zypp-override.conf (JB#28277)
+# NOTE: zypp.conf might also arch override so this assumes that both files agree on the same value.
+echo "arch = %{_target_cpu}" >> %{buildroot}%{_sysconfdir}/zypp/packagekit-zypp-override.conf
 
 %find_lang %name
 
@@ -329,7 +327,7 @@ update-mime-database %{_datadir}/mime &> /dev/null || :
 %{_libdir}/packagekit-backend/libpk_backend_zypp.so
 %{_libexecdir}/pk-rpm-db-clean
 %{_unitdir}/rpm-db-clean.service
-%config %{_sysconfdir}/zypp/pk-zypp-cache.conf
+%config %{_sysconfdir}/zypp/packagekit-zypp-override.conf
 
 %files glib
 %defattr(-,root,root,-)
