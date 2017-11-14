@@ -1,25 +1,21 @@
-From 020c4e27a9b39179874946ff1732859665e493b2 Mon Sep 17 00:00:00 2001
+From d8ba6bca953ff4c197efc84924f37c82fd60acfc Mon Sep 17 00:00:00 2001
 From: Juha Kallioinen <juha.kallioinen@jolla.com>
 Date: Mon, 28 Oct 2013 15:26:56 +0000
-Subject: [PATCH 07/40] Add l10n handler for missing roles
+Subject: [PATCH 07/38] Add l10n handler for missing roles
 
 Without this when G_DEBUG env is set, glib will emit a warning.
 ---
- lib/packagekit-glib2/pk-enum.c | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ lib/packagekit-glib2/pk-enum.c | 4 ++++
+ 1 file changed, 4 insertions(+)
 
 diff --git a/lib/packagekit-glib2/pk-enum.c b/lib/packagekit-glib2/pk-enum.c
-index 8f556a6b3..730f1f6fa 100644
+index 63385ca8c..4a3ba26bd 100644
 --- a/lib/packagekit-glib2/pk-enum.c
 +++ b/lib/packagekit-glib2/pk-enum.c
-@@ -1325,6 +1325,14 @@ pk_role_enum_to_localised_present (PkRoleEnum role)
+@@ -1249,6 +1249,10 @@ pk_role_enum_to_localised_present (PkRoleEnum role)
  		/* TRANSLATORS: The role of the transaction, in present tense */
- 		text = dgettext("PackageKit", "Getting transactions");
+ 		text = dgettext("PackageKit", "Getting system upgrades");
  		break;
-+	case PK_ROLE_ENUM_UPGRADE_SYSTEM:
-+		/* TRANSLATORS: The role of the transaction, in present tense */
-+		text = dgettext("PackageKit", "Getting upgrades");
-+		break;
 +	case PK_ROLE_ENUM_REPAIR_SYSTEM:
 +		/* TRANSLATORS: The role of the transaction, in present tense */
 +		text = dgettext("PackageKit", "Repairing system");

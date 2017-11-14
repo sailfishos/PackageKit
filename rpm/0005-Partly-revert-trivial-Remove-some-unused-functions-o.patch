@@ -1,0 +1,41 @@
+From cb3fa2eacc8868512331cc00a0580297421ff936 Mon Sep 17 00:00:00 2001
+From: Pekka Vuorela <pekka.vuorela@jollamobile.com>
+Date: Wed, 11 Oct 2017 18:32:00 +0300
+Subject: [PATCH 05/38] Partly revert "trivial: Remove some unused functions"
+ on pk_dbus_get_pid
+
+Need pk_dbus_get_pid for whitelisting
+---
+ src/pk-dbus.c | 2 +-
+ src/pk-dbus.h | 2 ++
+ 2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pk-dbus.c b/src/pk-dbus.c
+index 5bb233914..98cc84bb3 100644
+--- a/src/pk-dbus.c
++++ b/src/pk-dbus.c
+@@ -97,7 +97,7 @@ pk_dbus_get_uid (PkDbus *dbus, const gchar *sender)
+  *
+  * Return value: the PID, or %G_MAXUINT if it could not be obtained
+  **/
+-static guint
++guint
+ pk_dbus_get_pid (PkDbus *dbus, const gchar *sender)
+ {
+ 	guint pid = G_MAXUINT;
+diff --git a/src/pk-dbus.h b/src/pk-dbus.h
+index b287b991e..69c0d7a7c 100644
+--- a/src/pk-dbus.h
++++ b/src/pk-dbus.h
+@@ -55,6 +55,8 @@ PkDbus		*pk_dbus_new			(void);
+ 
+ guint		 pk_dbus_get_uid		(PkDbus		*dbus,
+ 						 const gchar	*sender);
++guint		 pk_dbus_get_pid		(PkDbus		*dbus,
++						 const gchar	*sender);
+ gchar		*pk_dbus_get_cmdline		(PkDbus		*dbus,
+ 						 const gchar	*sender);
+ gchar		*pk_dbus_get_session		(PkDbus		*dbus,
+-- 
+2.13.6
+

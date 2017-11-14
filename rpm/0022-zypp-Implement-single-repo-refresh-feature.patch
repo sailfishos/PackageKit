@@ -1,0 +1,53 @@
+From e088457d2eeb76f94c31c5ec41066e8652e0b809 Mon Sep 17 00:00:00 2001
+From: Thomas Perl <thomas.perl@jolla.com>
+Date: Mon, 2 Dec 2013 10:28:48 +0100
+Subject: [PATCH 22/38] zypp: Implement single-repo refresh feature
+
+To get a list of available repositories, use:
+
+    pkcon repo-list
+
+To force-refresh a given repository, use:
+
+    pkcon repo-set-data $REPOSITORY refresh-now true
+
+To refresh a given repository if needed, use:
+
+    pkcon repo-set-data $REPOSITORY refresh-now false
+
+This feature has been implemented on top of repo-set-data, so that
+we do not need to modify or add a new D-Bus API method to PackageKit.
+---
+ backends/zypp/pk-backend-zypp.cpp | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
+index d4d0674e7..a2e876cf0 100644
+--- a/backends/zypp/pk-backend-zypp.cpp
++++ b/backends/zypp/pk-backend-zypp.cpp
+@@ -3596,6 +3596,13 @@ backend_repo_set_data_thread (PkBackendJob *job, GVariant *params, gpointer user
+ 		} else if (g_ascii_strcasecmp (parameter, "name") == 0) {
+ 			repo.setName(value);
+ 			manager.modifyRepository (repo_id, repo);
++		} else if (g_ascii_strcasecmp (parameter, "refresh-now") == 0) {
++			// Hack to allow refreshing a single repository
++			bool force = (g_ascii_strcasecmp (value, "true") == 0);
++			PK_ZYPP_LOG("Refreshing single repository (id=%s, url=%s, force=%s)", repo_id,
++					repo.url().asString().c_str(), force ? "true" : "false");
++			pk_backend_job_set_status (job, PK_STATUS_ENUM_REFRESH_CACHE);
++			zypp_refresh_meta_and_cache (manager, repo, force);
+ 		} else if (g_ascii_strcasecmp (parameter, "prio") == 0) {
+ 			gint prio = 0;
+ 			gint length = strlen (value);
+@@ -3626,7 +3633,7 @@ backend_repo_set_data_thread (PkBackendJob *job, GVariant *params, gpointer user
+ 			}
+ 
+ 		} else {
+-			pk_backend_job_error_code (job, PK_ERROR_ENUM_NOT_SUPPORTED, "Valid parameters for set_repo_data are remove/add/refresh/prio/keep/url/name");
++			pk_backend_job_error_code (job, PK_ERROR_ENUM_NOT_SUPPORTED, "Valid parameters for set_repo_data are remove/add/refresh/prio/keep/url/name/refresh-now");
+ 		}
+ 
+ 	} catch (const repo::RepoNotFoundException &ex) {
+-- 
+2.13.6
+

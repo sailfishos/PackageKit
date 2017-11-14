@@ -1,0 +1,37 @@
+From f6cbf9c71d2fce4f343ed6c5fa8495b1c19a0707 Mon Sep 17 00:00:00 2001
+From: Martin Grimme <martin.grimme@gmail.com>
+Date: Fri, 2 Oct 2015 09:26:48 +0200
+Subject: [PATCH 37/38] Revert dependency on libzypp version 14 as we cannot
+ have it yet. Contributes to JB#31091
+
+---
+ backends/zypp/pk-backend-zypp.cpp | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
+index baf45bb33..85fe55ed5 100644
+--- a/backends/zypp/pk-backend-zypp.cpp
++++ b/backends/zypp/pk-backend-zypp.cpp
+@@ -2090,14 +2090,15 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo
+ 
+ 				Package::constPtr pkg = asKind<Package>(it->resolvable());
+ 				if (pkg) {
+-					if (pkg->isCached()) {
+-						total_cached_bytes += pkg->downloadSize();
+-					} else {
++					// TODO: Enable once we have upgraded libzypp
++					//if (pkg->isCached()) {
++					//	total_cached_bytes += pkg->downloadSize();
++					//} else {
+ 						total_download_bytes += pkg->downloadSize();
+ 						if (pkg->downloadSize() > biggest_package_download) {
+ 							biggest_package_download = pkg->downloadSize();
+ 						}
+-					}
++					//}
+ 				}
+ 			} else if (!only_download && it->status().isToBeUninstalled()) {
+ 				if (!it->status().isToBeUninstalledDueToUpgrade()) {
+-- 
+2.13.6
+

@@ -1,0 +1,32 @@
+From 1c390d2fdb247202fa14b987bb4602aafa614235 Mon Sep 17 00:00:00 2001
+From: Thomas Perl <thomas.perl@jollamobile.com>
+Date: Tue, 29 Oct 2013 01:37:23 +0100
+Subject: [PATCH 20/38] zypp: Really, really refresh when "force" is set
+
+There was an additional check in the repository refreshing code that
+prevented repositories from being refreshed, even when forced due to
+some timeout in libzypp's refresh logic.
+---
+ backends/zypp/pk-backend-zypp.cpp | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
+index a7b7daa3e..5eb3fe745 100644
+--- a/backends/zypp/pk-backend-zypp.cpp
++++ b/backends/zypp/pk-backend-zypp.cpp
+@@ -1228,8 +1228,11 @@ class AbortTransactionException {
+ static gboolean
+ zypp_refresh_meta_and_cache (RepoManager &manager, RepoInfo &repo, bool force = false)
+ {
++	zypp::RepoManager::RawMetadataRefreshPolicy refreshPolicy =
++		force ? RepoManager::RefreshForced : RepoManager::RefreshIfNeeded;
++
+ 	try {
+-		if (manager.checkIfToRefreshMetadata (repo, repo.url())    //RepoManager::RefreshIfNeededIgnoreDelay)
++		if (manager.checkIfToRefreshMetadata (repo, repo.url(), refreshPolicy)
+ 		    != RepoManager::REFRESH_NEEDED)
+ 			return TRUE;
+ 
+-- 
+2.13.6
+

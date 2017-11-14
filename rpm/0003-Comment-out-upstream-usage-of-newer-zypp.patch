@@ -1,0 +1,41 @@
+From a937b8771466e08a224c6471c20fffcab0693333 Mon Sep 17 00:00:00 2001
+From: Pekka Vuorela <pekka.vuorela@jollamobile.com>
+Date: Wed, 11 Oct 2017 16:50:18 +0300
+Subject: [PATCH 03/38] Comment out upstream usage of newer zypp.
+
+---
+ backends/zypp/pk-backend-zypp.cpp | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
+index 50069283e..f89bdef2d 100644
+--- a/backends/zypp/pk-backend-zypp.cpp
++++ b/backends/zypp/pk-backend-zypp.cpp
+@@ -1036,8 +1036,9 @@ zypp_package_is_cached (const sat::Solvable &item)
+ {
+ 	if ( isKind<Package>( item ) )
+ 	{
+-		Package::Ptr pkg( make<Package>( item ) );
+-		return pkg->isCached();
++		//Package::Ptr pkg( make<Package>( item ) );
++		//return pkg->isCached();
++		return FALSE;
+ 	}
+ 	return FALSE;
+ }
+@@ -1198,9 +1199,9 @@ zypp_get_patches (PkBackendJob *job, ZYpp::Ptr zypp, set<PoolItem> &patches)
+ 		// check if the patch is needed and not set to taboo
+ 		if((*it)->isNeeded() && !((*it)->candidateObj ().isUnwanted())) {
+ 			Patch::constPtr patch = asKind<Patch>((*it)->candidateObj ().resolvable ());
+-			if (!sawSecurityPatch && patch->isCategory(Patch::CAT_SECURITY)) {
+-				sawSecurityPatch = true;
+-			}
++			//if (!sawSecurityPatch && patch->isCategory(Patch::CAT_SECURITY)) {
++			//	sawSecurityPatch = true;
++			//}
+ 
+ 			if (detail == SelfUpdate::kYes) {
+ 				if (patch->restartSuggested ())
+-- 
+2.13.6
+
