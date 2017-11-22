@@ -231,17 +231,6 @@ make %{?_smp_mflags}
 export PATH=$PATH:`pwd`/hack
 %make_install
 
-touch $RPM_BUILD_ROOT%{_localstatedir}/cache/PackageKit/groups.sqlite
-
-# create a link that from the comps icons to PK, as PackageKit frontends
-# cannot add /usr/share/pixmaps/comps to the icon search path as some distros
-# do not use comps. Patching this in the frontend is not a good idea, as there
-# are multiple frontends in multiple programming languages.
-pushd ${RPM_BUILD_ROOT}%{_datadir}/PackageKit > /dev/null
-ln -s ../pixmaps/comps icons
-popd > /dev/null
-
-
 # Add vendor-specific values to system configuration
 sed -i \
     -e 's#^\(DefaultUrl=\).*$#\1%{vendor_bugs}#g' \
@@ -291,22 +280,21 @@ update-mime-database %{_datadir}/mime &> /dev/null || :
 %dir %{_sysconfdir}/PackageKit
 %dir %{_localstatedir}/lib/PackageKit
 %dir %{_localstatedir}/cache/PackageKit
-%ghost %verify(not md5 size mtime) %{_localstatedir}/cache/PackageKit/groups.sqlite
 %dir %{_localstatedir}/cache/PackageKit/downloads
 %dir %{_libdir}/packagekit-backend
 %config(noreplace) %{_sysconfdir}/PackageKit/*.conf
 %config %{_sysconfdir}/dbus-1/system.d/*
-%dir %{_datadir}/PackageKit/helpers/test_spawn
-%dir %{_datadir}/PackageKit/icons
-%{_datadir}/PackageKit/helpers/test_spawn/*
+%exclude %dir %{_datadir}/PackageKit/helpers/test_spawn
+%exclude %{_datadir}/PackageKit/helpers/test_spawn/*
 %{_datadir}/polkit-1/actions/*.policy
 %{_datadir}/polkit-1/rules.d/org.freedesktop.packagekit.rules
-%{_datadir}/PackageKit/pk-upgrade-distro.sh
+# applies only to some desktop distributions
+%exclude %{_datadir}/PackageKit/pk-upgrade-distro.sh
 %{_libexecdir}/packagekitd
 %{_bindir}/pkmon
 %{_bindir}/pkcon
 %exclude %{_libdir}/libpackagekit*.so.*
-%{_libdir}/packagekit-backend/libpk_backend_test_*.so
+%exclude %{_libdir}/packagekit-backend/libpk_backend_test_*.so
 %ghost %verify(not md5 size mtime) %{_localstatedir}/lib/PackageKit/transactions.db
 %{_datadir}/dbus-1/system-services/*.service
 %{_datadir}/dbus-1/interfaces/*.xml
