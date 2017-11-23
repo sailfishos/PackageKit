@@ -231,6 +231,10 @@ make %{?_smp_mflags}
 export PATH=$PATH:`pwd`/hack
 %make_install
 
+# delete unneeded things
+rm -r ${RPM_BUILD_ROOT}/%{_datadir}/PackageKit/helpers/test_spawn
+rm ${RPM_BUILD_ROOT}/%{_libdir}/packagekit-backend/libpk_backend_test_*.so
+
 # Add vendor-specific values to system configuration
 sed -i \
     -e 's#^\(DefaultUrl=\).*$#\1%{vendor_bugs}#g' \
@@ -284,8 +288,6 @@ update-mime-database %{_datadir}/mime &> /dev/null || :
 %dir %{_libdir}/packagekit-backend
 %config(noreplace) %{_sysconfdir}/PackageKit/*.conf
 %config %{_sysconfdir}/dbus-1/system.d/*
-%exclude %dir %{_datadir}/PackageKit/helpers/test_spawn
-%exclude %{_datadir}/PackageKit/helpers/test_spawn/*
 %{_datadir}/polkit-1/actions/*.policy
 %{_datadir}/polkit-1/rules.d/org.freedesktop.packagekit.rules
 # applies only to some desktop distributions
@@ -294,7 +296,6 @@ update-mime-database %{_datadir}/mime &> /dev/null || :
 %{_bindir}/pkmon
 %{_bindir}/pkcon
 %exclude %{_libdir}/libpackagekit*.so.*
-%exclude %{_libdir}/packagekit-backend/libpk_backend_test_*.so
 %ghost %verify(not md5 size mtime) %{_localstatedir}/lib/PackageKit/transactions.db
 %{_datadir}/dbus-1/system-services/*.service
 %{_datadir}/dbus-1/interfaces/*.xml
