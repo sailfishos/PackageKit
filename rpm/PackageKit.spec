@@ -1,7 +1,5 @@
 # Vendor-specific values displayed in PackageKit user interfaces
-%define vendor_name             Mer
 %define vendor_bugs             http://bugs.merproject.org/
-%define vendor_icon             mer-logo-small
 
 Summary:   Package management service
 Name:      PackageKit
@@ -236,8 +234,6 @@ rm ${RPM_BUILD_ROOT}/%{_libdir}/packagekit-backend/libpk_backend_test_*.so
 # Add vendor-specific values to system configuration
 sed -i \
     -e 's#^\(DefaultUrl=\).*$#\1%{vendor_bugs}#g' \
-    -e 's#^\(VendorName=\).*$#\1%{vendor_name}#g' \
-    -e 's#^\(VendorIcon=\).*$#\1%{vendor_icon}#g' \
     ${RPM_BUILD_ROOT}%{_sysconfdir}/PackageKit/Vendor.conf
 
 # install cleanup service files
