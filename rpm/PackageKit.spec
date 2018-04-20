@@ -236,6 +236,11 @@ sed -i \
     -e 's#^\(DefaultUrl=\).*$#\1%{vendor_bugs}#g' \
     ${RPM_BUILD_ROOT}%{_sysconfdir}/PackageKit/Vendor.conf
 
+# Enable autoquit
+sed -i \
+    -e 's/#ShutdownTimeout/ShutdownTimeout/g' \
+    ${RPM_BUILD_ROOT}%{_sysconfdir}/PackageKit/PackageKit.conf
+
 # install cleanup service files
 install -D -m 644 %{S:100} %{buildroot}%{_unitdir}/rpm-db-clean.service
 install -D -m 755 %{S:101} %{buildroot}%{_libexecdir}/pk-rpm-db-clean
