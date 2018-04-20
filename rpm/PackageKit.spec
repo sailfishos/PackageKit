@@ -56,12 +56,10 @@ Patch38: 0038-Downgrade-Glib-dependency.patch
 
 Requires: PackageKit-zypp = %{version}-%{release}
 Requires: shared-mime-info
-Requires: connman
 
 BuildRequires: glib2-devel >= 2.46
 BuildRequires: pam-devel
 BuildRequires: sqlite-devel
-BuildRequires: connman-devel
 BuildRequires: polkit-devel >= 0.98
 BuildRequires: libtool
 BuildRequires: perl(XML::Parser)
@@ -241,11 +239,6 @@ sed -i \
     -e 's#^\(VendorName=\).*$#\1%{vendor_name}#g' \
     -e 's#^\(VendorIcon=\).*$#\1%{vendor_icon}#g' \
     ${RPM_BUILD_ROOT}%{_sysconfdir}/PackageKit/Vendor.conf
-
-# Enable runtime support for connman
-sed -i \
-    -e 's#^\(UseNetworkConnman=\).*$#\1true#g' \
-    ${RPM_BUILD_ROOT}%{_sysconfdir}/PackageKit/PackageKit.conf
 
 # install cleanup service files
 install -D -m 644 %{S:100} %{buildroot}%{_unitdir}/rpm-db-clean.service
