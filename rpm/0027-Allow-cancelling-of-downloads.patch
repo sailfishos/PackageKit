@@ -1,14 +1,14 @@
-From db4aac22b9b59515c8fcc42485c3350ab8ef21c5 Mon Sep 17 00:00:00 2001
+From 5df814bf8f1e08f07547b6dc8dd2bd3130fdb18c Mon Sep 17 00:00:00 2001
 From: Thomas Perl <thomas.perl@jolla.com>
 Date: Tue, 6 May 2014 11:25:33 +0200
-Subject: [PATCH 28/38] Allow cancelling of downloads
+Subject: [PATCH 27/38] Allow cancelling of downloads
 
 ---
  backends/zypp/pk-backend-zypp.cpp | 77 ++++++++++++++++++++++++++++++++++++++-
  1 file changed, 75 insertions(+), 2 deletions(-)
 
 diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
-index 3b28379de..31d6b8ba9 100644
+index a8bf2521b..a027ee5e3 100644
 --- a/backends/zypp/pk-backend-zypp.cpp
 +++ b/backends/zypp/pk-backend-zypp.cpp
 @@ -120,12 +120,26 @@ enum ProgressPhase {
@@ -128,7 +128,7 @@ index 3b28379de..31d6b8ba9 100644
  
  namespace {
  	/// Helper finding pattern at end or embedded in name.
-@@ -2968,6 +3019,22 @@ pk_backend_install_packages (PkBackend *backend, PkBackendJob *job, PkBitfield t
+@@ -2983,6 +3034,22 @@ pk_backend_install_packages (PkBackend *backend, PkBackendJob *job, PkBitfield t
  	zypp_backend_job_thread_create (job, backend_install_packages_thread, NULL, NULL);
  }
  
@@ -151,7 +151,7 @@ index 3b28379de..31d6b8ba9 100644
  
  static void
  backend_install_signature_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
-@@ -4065,6 +4132,12 @@ backend_upgrade_system_thread (PkBackendJob *job, GVariant *params, gpointer use
+@@ -4088,6 +4155,12 @@ backend_upgrade_system_thread (PkBackendJob *job, GVariant *params, gpointer use
  		if (!zypp_perform_execution (job, zypp, UPGRADE, TRUE, transaction_flags)) {
  			//MIL << "Upgrade execution failed" << std::endl;
  		}

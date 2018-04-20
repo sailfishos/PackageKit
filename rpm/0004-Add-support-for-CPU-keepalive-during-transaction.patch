@@ -1,4 +1,4 @@
-From aff55779e7a4bd54ef9e16ab64cc9ad86a9dd324 Mon Sep 17 00:00:00 2001
+From 901fabb295680346e25ee238936a969d6c1dc8e5 Mon Sep 17 00:00:00 2001
 From: Pekka Vuorela <pekka.vuorela@jollamobile.com>
 Date: Wed, 11 Oct 2017 18:20:22 +0300
 Subject: [PATCH 04/38] Add support for CPU keepalive during transaction
@@ -12,7 +12,7 @@ device does not go to sleep when packagekit is working on something
  3 files changed, 247 insertions(+), 3 deletions(-)
 
 diff --git a/configure.ac b/configure.ac
-index 5f8f1752e..69eecad8e 100644
+index bd26f3128..2f00d82e9 100644
 --- a/configure.ac
 +++ b/configure.ac
 @@ -229,6 +229,17 @@ AC_ARG_ENABLE(offline-update, AS_HELP_STRING([--enable-offline-update],[enable o
@@ -76,7 +76,7 @@ index 830aaf873..af5c55761 100644
  pk_self_test_CPPFLAGS =					\
  	$(AM_CPPFLAGS)					\
 diff --git a/src/pk-engine.c b/src/pk-engine.c
-index 766a3aeb0..18545fed7 100644
+index 4894a3800..f201f28d0 100644
 --- a/src/pk-engine.c
 +++ b/src/pk-engine.c
 @@ -43,6 +43,10 @@
@@ -324,7 +324,7 @@ index 766a3aeb0..18545fed7 100644
  	if (size != 0) {
  		g_debug ("engine idle zero as %i transactions in progress", size);
  		return 0;
-@@ -1977,6 +2194,11 @@ pk_engine_init (PkEngine *engine)
+@@ -1976,6 +2193,11 @@ pk_engine_init (PkEngine *engine)
  	/* setup file watches */
  	pk_engine_setup_file_monitors (engine);
  
@@ -336,7 +336,7 @@ index 766a3aeb0..18545fed7 100644
  	/* we use a trasaction db to store old transactions */
  	engine->priv->transaction_db = pk_transaction_db_new ();
  
-@@ -2039,6 +2261,13 @@ pk_engine_finalize (GObject *object)
+@@ -2038,6 +2260,13 @@ pk_engine_finalize (GObject *object)
  		g_object_unref (engine->priv->logind_proxy);
  #endif
  

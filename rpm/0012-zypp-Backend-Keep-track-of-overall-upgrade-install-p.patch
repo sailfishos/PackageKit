@@ -1,4 +1,4 @@
-From 9ef67000eee92dbbbde659ce75ee052b633570a2 Mon Sep 17 00:00:00 2001
+From 75ebf4c09cd988d3d250f0228cd09088f2e1c676 Mon Sep 17 00:00:00 2001
 From: Pekka Vuorela <pekka.vuorela@jollamobile.com>
 Date: Fri, 13 Oct 2017 15:03:49 +0300
 Subject: [PATCH 12/38] zypp Backend: Keep track of overall upgrade/install
@@ -17,7 +17,7 @@ on upstream since the patch was created
  1 file changed, 81 insertions(+), 2 deletions(-)
 
 diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
-index 4d01e6e16..3bce8138a 100644
+index df0f068d5..c5dc6df38 100644
 --- a/backends/zypp/pk-backend-zypp.cpp
 +++ b/backends/zypp/pk-backend-zypp.cpp
 @@ -209,6 +209,11 @@ namespace ZyppBackend

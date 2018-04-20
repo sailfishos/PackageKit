@@ -1,4 +1,4 @@
-From 9ca61491e0726beca7fa11e598d980d864885a43 Mon Sep 17 00:00:00 2001
+From 88b483d999eef14e06bc429c90baac0f8800901f Mon Sep 17 00:00:00 2001
 From: Thomas Perl <thomas.perl@jolla.com>
 Date: Wed, 23 Oct 2013 03:50:52 +0200
 Subject: [PATCH 18/38] zypp: Report progress for download and install
@@ -14,7 +14,7 @@ available, we can fully fix the percentage reporting for downloads.
  1 file changed, 89 insertions(+), 6 deletions(-)
 
 diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
-index 8ffaceb8c..3fccacb7e 100644
+index 5ce78a1cd..21d9d46b5 100644
 --- a/backends/zypp/pk-backend-zypp.cpp
 +++ b/backends/zypp/pk-backend-zypp.cpp
 @@ -110,6 +110,17 @@ typedef enum {

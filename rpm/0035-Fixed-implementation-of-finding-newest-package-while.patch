@@ -1,7 +1,7 @@
-From 77fdd0abb00e82982337aada874ecf2628ba2ba5 Mon Sep 17 00:00:00 2001
+From 3c14627b3fe637290bf7bb5b45f1397ec5b75607 Mon Sep 17 00:00:00 2001
 From: Martin Grimme <martin.grimme@gmail.com>
 Date: Fri, 11 Sep 2015 13:05:28 +0200
-Subject: [PATCH 36/38] Fixed implementation of finding newest package while
+Subject: [PATCH 35/38] Fixed implementation of finding newest package while
  resolving. Fixes JB#32224
 
 ---
@@ -9,10 +9,10 @@ Subject: [PATCH 36/38] Fixed implementation of finding newest package while
  1 file changed, 4 insertions(+), 1 deletion(-)
 
 diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
-index 76d9e2722..baf45bb33 100644
+index e78ff9a92..4fc57983a 100644
 --- a/backends/zypp/pk-backend-zypp.cpp
 +++ b/backends/zypp/pk-backend-zypp.cpp
-@@ -3473,7 +3473,10 @@ backend_resolve_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
+@@ -3488,7 +3488,10 @@ backend_resolve_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
  			
  			if (zypp_is_no_solvable(newest)) {
  				newest = *it;

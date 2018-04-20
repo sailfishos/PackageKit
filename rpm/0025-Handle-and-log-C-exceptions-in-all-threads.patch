@@ -1,14 +1,14 @@
-From b2402505ccc74bbb5df17591c94330ae216f6500 Mon Sep 17 00:00:00 2001
+From 54ed11a48e8eb86baf286de14db4cc91063609c7 Mon Sep 17 00:00:00 2001
 From: Thomas Perl <thomas.perl@jolla.com>
 Date: Wed, 2 Apr 2014 15:44:12 +0200
-Subject: [PATCH 26/38] Handle and log C++ exceptions in all threads
+Subject: [PATCH 25/38] Handle and log C++ exceptions in all threads
 
 ---
  backends/zypp/pk-backend-zypp.cpp | 102 +++++++++++++++++++++++++++++---------
  1 file changed, 79 insertions(+), 23 deletions(-)
 
 diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
-index 95a929da1..0b9b99c52 100644
+index 2b60a3529..c9f680579 100644
 --- a/backends/zypp/pk-backend-zypp.cpp
 +++ b/backends/zypp/pk-backend-zypp.cpp
 @@ -217,6 +217,62 @@ zypp_build_package_id_from_resolvable (const sat::Solvable &resolvable)
@@ -92,7 +92,7 @@ index 95a929da1..0b9b99c52 100644
  }
  
  static void
-@@ -2401,7 +2457,7 @@ backend_get_details_thread (PkBackendJob *job, GVariant *params, gpointer user_d
+@@ -2408,7 +2464,7 @@ backend_get_details_thread (PkBackendJob *job, GVariant *params, gpointer user_d
  void
  pk_backend_get_details (PkBackend *backend, PkBackendJob *job, gchar **package_ids)
  {
@@ -101,7 +101,7 @@ index 95a929da1..0b9b99c52 100644
  }
  
  static void
-@@ -2454,7 +2510,7 @@ backend_get_distro_upgrades_thread(PkBackendJob *job, GVariant *params, gpointer
+@@ -2461,7 +2517,7 @@ backend_get_distro_upgrades_thread(PkBackendJob *job, GVariant *params, gpointer
  void
  pk_backend_get_distro_upgrades (PkBackend *backend, PkBackendJob *job)
  {
@@ -110,7 +110,7 @@ index 95a929da1..0b9b99c52 100644
  }
  
  static void
-@@ -2476,7 +2532,7 @@ backend_refresh_cache_thread (PkBackendJob *job, GVariant *params, gpointer user
+@@ -2483,7 +2539,7 @@ backend_refresh_cache_thread (PkBackendJob *job, GVariant *params, gpointer user
  void
  pk_backend_refresh_cache (PkBackend *backend, PkBackendJob *job, gboolean force)
  {
@@ -119,7 +119,7 @@ index 95a929da1..0b9b99c52 100644
  }
  
  /* If a critical self update (see qualifying steps below) is available then only show/install that update first.
-@@ -2580,7 +2636,7 @@ backend_get_updates_thread (PkBackendJob *job, GVariant *params, gpointer user_d
+@@ -2587,7 +2643,7 @@ backend_get_updates_thread (PkBackendJob *job, GVariant *params, gpointer user_d
  void
  pk_backend_get_updates (PkBackend *backend, PkBackendJob *job, PkBitfield filters)
  {
@@ -128,7 +128,7 @@ index 95a929da1..0b9b99c52 100644
  }
  
  static void
-@@ -2704,7 +2760,7 @@ backend_install_files_thread (PkBackendJob *job, GVariant *params, gpointer user
+@@ -2711,7 +2767,7 @@ backend_install_files_thread (PkBackendJob *job, GVariant *params, gpointer user
  void
  pk_backend_install_files (PkBackend *backend, PkBackendJob *job, PkBitfield transaction_flags, gchar **full_paths)
  {
@@ -137,7 +137,7 @@ index 95a929da1..0b9b99c52 100644
  }
  
  static void
-@@ -2803,7 +2859,7 @@ backend_get_update_detail_thread (PkBackendJob *job, GVariant *params, gpointer
+@@ -2810,7 +2866,7 @@ backend_get_update_detail_thread (PkBackendJob *job, GVariant *params, gpointer
  void
  pk_backend_get_update_detail (PkBackend *backend, PkBackendJob *job, gchar **package_ids)
  {
@@ -146,7 +146,7 @@ index 95a929da1..0b9b99c52 100644
  }
  
  static void
-@@ -2890,7 +2946,7 @@ pk_backend_install_packages (PkBackend *backend, PkBackendJob *job, PkBitfield t
+@@ -2905,7 +2961,7 @@ pk_backend_install_packages (PkBackend *backend, PkBackendJob *job, PkBitfield t
  {
  	// For now, don't let the user cancel the install once it's started
  	pk_backend_job_set_allow_cancel (job, FALSE);
@@ -155,7 +155,7 @@ index 95a929da1..0b9b99c52 100644
  }
  
  
-@@ -2914,7 +2970,7 @@ backend_install_signature_thread (PkBackendJob *job, GVariant *params, gpointer
+@@ -2929,7 +2985,7 @@ backend_install_signature_thread (PkBackendJob *job, GVariant *params, gpointer
  void
  pk_backend_install_signature (PkBackend *backend, PkBackendJob *job, PkSigTypeEnum type, const gchar *key_id, const gchar *package_id)
  {
@@ -164,7 +164,7 @@ index 95a929da1..0b9b99c52 100644
  }
  
  static void
-@@ -3004,7 +3060,7 @@ void
+@@ -3019,7 +3075,7 @@ void
  pk_backend_remove_packages (PkBackend *backend, PkBackendJob *job, PkBitfield transaction_flags,
  			    gchar **package_ids, gboolean allow_deps, gboolean autoremove)
  {
@@ -173,7 +173,7 @@ index 95a929da1..0b9b99c52 100644
  }
  
  static void
-@@ -3095,7 +3151,7 @@ backend_resolve_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
+@@ -3110,7 +3166,7 @@ backend_resolve_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
  void
  pk_backend_resolve (PkBackend *backend, PkBackendJob *job, PkBitfield filters, gchar **package_ids)
  {
@@ -182,7 +182,7 @@ index 95a929da1..0b9b99c52 100644
  }
  
  static void
-@@ -3187,7 +3243,7 @@ backend_find_packages_thread (PkBackendJob *job, GVariant *params, gpointer user
+@@ -3202,7 +3258,7 @@ backend_find_packages_thread (PkBackendJob *job, GVariant *params, gpointer user
  void
  pk_backend_search_names (PkBackend *backend, PkBackendJob *job, PkBitfield filters, gchar **values)
  {
@@ -191,7 +191,7 @@ index 95a929da1..0b9b99c52 100644
  }
  
  /**
-@@ -3196,7 +3252,7 @@ pk_backend_search_names (PkBackend *backend, PkBackendJob *job, PkBitfield filte
+@@ -3211,7 +3267,7 @@ pk_backend_search_names (PkBackend *backend, PkBackendJob *job, PkBitfield filte
  void
  pk_backend_search_details (PkBackend *backend, PkBackendJob *job, PkBitfield filters, gchar **values)
  {
@@ -200,7 +200,7 @@ index 95a929da1..0b9b99c52 100644
  }
  
  static void
-@@ -3257,7 +3313,7 @@ backend_search_group_thread (PkBackendJob *job, GVariant *params, gpointer user_
+@@ -3272,7 +3328,7 @@ backend_search_group_thread (PkBackendJob *job, GVariant *params, gpointer user_
  void
  pk_backend_search_groups (PkBackend *backend, PkBackendJob *job, PkBitfield filters, gchar **values)
  {
@@ -209,7 +209,7 @@ index 95a929da1..0b9b99c52 100644
  }
  
  /**
-@@ -3266,7 +3322,7 @@ pk_backend_search_groups (PkBackend *backend, PkBackendJob *job, PkBitfield filt
+@@ -3281,7 +3337,7 @@ pk_backend_search_groups (PkBackend *backend, PkBackendJob *job, PkBitfield filt
  void
  pk_backend_search_files (PkBackend *backend, PkBackendJob *job, PkBitfield filters, gchar **values)
  {
@@ -218,7 +218,7 @@ index 95a929da1..0b9b99c52 100644
  }
  
  /**
-@@ -3423,7 +3479,7 @@ backend_get_files_thread (PkBackendJob *job, GVariant *params, gpointer user_dat
+@@ -3438,7 +3494,7 @@ backend_get_files_thread (PkBackendJob *job, GVariant *params, gpointer user_dat
  void
  pk_backend_get_files(PkBackend *backend, PkBackendJob *job, gchar **package_ids)
  {
@@ -227,7 +227,7 @@ index 95a929da1..0b9b99c52 100644
  }
  
  static void
-@@ -3464,7 +3520,7 @@ backend_get_packages_thread (PkBackendJob *job, GVariant *params, gpointer user_
+@@ -3479,7 +3535,7 @@ backend_get_packages_thread (PkBackendJob *job, GVariant *params, gpointer user_
  void
  pk_backend_get_packages (PkBackend *backend, PkBackendJob *job, PkBitfield filter)
  {
@@ -236,7 +236,7 @@ index 95a929da1..0b9b99c52 100644
  }
  
  static void
-@@ -3525,7 +3581,7 @@ backend_update_packages_thread (PkBackendJob *job, GVariant *params, gpointer us
+@@ -3548,7 +3604,7 @@ backend_update_packages_thread (PkBackendJob *job, GVariant *params, gpointer us
  void
  pk_backend_update_packages (PkBackend *backend, PkBackendJob *job, PkBitfield transaction_flags, gchar **package_ids)
  {
@@ -245,7 +245,7 @@ index 95a929da1..0b9b99c52 100644
  }
  
  static void
-@@ -3661,7 +3717,7 @@ backend_repo_set_data_thread (PkBackendJob *job, GVariant *params, gpointer user
+@@ -3684,7 +3740,7 @@ backend_repo_set_data_thread (PkBackendJob *job, GVariant *params, gpointer user
  void
  pk_backend_repo_set_data (PkBackend *backend, PkBackendJob *job, const gchar *repo_id, const gchar *parameter, const gchar *value)
  {
@@ -254,7 +254,7 @@ index 95a929da1..0b9b99c52 100644
  }
  
  /**
-@@ -3794,7 +3850,7 @@ backend_what_provides_thread (PkBackendJob *job, GVariant *params, gpointer user
+@@ -3817,7 +3873,7 @@ backend_what_provides_thread (PkBackendJob *job, GVariant *params, gpointer user
  void
  pk_backend_what_provides (PkBackend *backend, PkBackendJob *job, PkBitfield filters, gchar **values)
  {
@@ -263,7 +263,7 @@ index 95a929da1..0b9b99c52 100644
  }
  
  gchar **
-@@ -3887,7 +3943,7 @@ backend_download_packages_thread (PkBackendJob *job, GVariant *params, gpointer
+@@ -3910,7 +3966,7 @@ backend_download_packages_thread (PkBackendJob *job, GVariant *params, gpointer
  void
  pk_backend_download_packages (PkBackend *backend, PkBackendJob *job, gchar **package_ids, const gchar *directory)
  {
@@ -272,7 +272,7 @@ index 95a929da1..0b9b99c52 100644
  }
  
  /**
-@@ -4004,7 +4060,7 @@ void
+@@ -4027,7 +4083,7 @@ void
  pk_backend_upgrade_system (PkBackend *backend, PkBackendJob *job, PkBitfield transaction_flags,
  	const gchar *distro_id, PkUpgradeKindEnum upgrade_kind)
  {

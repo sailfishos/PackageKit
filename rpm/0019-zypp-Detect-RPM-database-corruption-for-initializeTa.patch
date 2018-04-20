@@ -1,4 +1,4 @@
-From 93c03d39f88ac36579f14eea736f41ab9264aa98 Mon Sep 17 00:00:00 2001
+From dac2eea8de6d811ada1e746e93322ad52c73fecb Mon Sep 17 00:00:00 2001
 From: Thomas Perl <thomas.perl@jollamobile.com>
 Date: Mon, 28 Oct 2013 12:19:48 +0100
 Subject: [PATCH 19/38] zypp: Detect RPM database corruption for
@@ -9,7 +9,7 @@ Subject: [PATCH 19/38] zypp: Detect RPM database corruption for
  1 file changed, 48 insertions(+), 6 deletions(-)
 
 diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
-index 3fccacb7e..a7b7daa3e 100644
+index 21d9d46b5..e36f498d1 100644
 --- a/backends/zypp/pk-backend-zypp.cpp
 +++ b/backends/zypp/pk-backend-zypp.cpp
 @@ -789,6 +789,32 @@ ZyppJob::~ZyppJob()

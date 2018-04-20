@@ -1,4 +1,4 @@
-From bdb9805ad78e8db04b33d1111ec58b6c76a58c6d Mon Sep 17 00:00:00 2001
+From 6019918092e41a3a7de7379b6b09c81264ccb41c Mon Sep 17 00:00:00 2001
 From: Thomas Perl <thomas.perl@jollamobile.com>
 Date: Thu, 22 Aug 2013 10:05:52 +0200
 Subject: [PATCH 15/38] Add libzypp authentication report handler
@@ -25,7 +25,7 @@ prompt() function in order to force the backend and libzypp to give up.
  1 file changed, 16 insertions(+)
 
 diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
-index 44dd11868..5da451915 100644
+index 01b887190..9e12e4818 100644
 --- a/backends/zypp/pk-backend-zypp.cpp
 +++ b/backends/zypp/pk-backend-zypp.cpp
 @@ -79,6 +79,7 @@

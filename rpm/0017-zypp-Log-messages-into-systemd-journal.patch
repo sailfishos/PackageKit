@@ -1,4 +1,4 @@
-From 06ef074ed4b24caa97c8aafe19d92625a966cb30 Mon Sep 17 00:00:00 2001
+From ef5a7451fd53318809502ab7da8a509b3b927cd6 Mon Sep 17 00:00:00 2001
 From: Thomas Perl <thomas.perl@jollamobile.com>
 Date: Wed, 2 Oct 2013 14:37:44 +0200
 Subject: [PATCH 17/38] zypp: Log messages into systemd journal
@@ -22,7 +22,7 @@ index 18d1d864e..937274cfd 100644
  libpk_backend_zypp_la_CXXFLAGS = $(PK_PLUGIN_CXXFLAGS) --std=c++0x -Wall -Woverloaded-virtual -Wnon-virtual-dtor
  libpk_backend_zypp_la_CPPFLAGS = $(PK_PLUGIN_CFLAGS) $(ZYPP_CFLAGS) -Wno-deprecated -D_FILE_OFFSET_BITS=64
 diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
-index d0497770a..8ffaceb8c 100644
+index 46630d4af..5ce78a1cd 100644
 --- a/backends/zypp/pk-backend-zypp.cpp
 +++ b/backends/zypp/pk-backend-zypp.cpp
 @@ -40,6 +40,8 @@
@@ -362,7 +362,7 @@ index d0497770a..8ffaceb8c 100644
  
  		sat::Solvable solv = zypp_get_package_by_id( package_ids[i] );
  
-@@ -2316,7 +2279,7 @@ pk_backend_get_details (PkBackend *backend, PkBackendJob *job, gchar **package_i
+@@ -2323,7 +2286,7 @@ pk_backend_get_details (PkBackend *backend, PkBackendJob *job, gchar **package_i
  static void
  backend_get_distro_upgrades_thread(PkBackendJob *job, GVariant *params, gpointer user_data)
  {
@@ -371,7 +371,7 @@ index d0497770a..8ffaceb8c 100644
  	
  	ZyppJob zjob(job);
  	ZYpp::Ptr zypp = zjob.get_zypp();
-@@ -2421,7 +2384,7 @@ backend_get_updates_thread (PkBackendJob *job, GVariant *params, gpointer user_d
+@@ -2428,7 +2391,7 @@ backend_get_updates_thread (PkBackendJob *job, GVariant *params, gpointer user_d
  	g_variant_get (params, "(t)",
  		       &_filters);
  
@@ -380,7 +380,7 @@ index d0497770a..8ffaceb8c 100644
  	ZyppJob zjob(job);
  	ZYpp::Ptr zypp = zjob.get_zypp();
  
-@@ -2495,7 +2458,7 @@ pk_backend_get_updates (PkBackend *backend, PkBackendJob *job, PkBitfield filter
+@@ -2502,7 +2465,7 @@ pk_backend_get_updates (PkBackend *backend, PkBackendJob *job, PkBitfield filter
  static void
  backend_install_files_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
  {
@@ -389,7 +389,7 @@ index d0497770a..8ffaceb8c 100644
  	RepoManager manager;
  	ZyppJob zjob(job);
  	ZYpp::Ptr zypp = zjob.get_zypp();
-@@ -2573,7 +2536,7 @@ backend_install_files_thread (PkBackendJob *job, GVariant *params, gpointer user
+@@ -2580,7 +2543,7 @@ backend_install_files_thread (PkBackendJob *job, GVariant *params, gpointer user
  	Repository repo = ResPool::instance().reposFind("PK_TMP_DIR");
  
  	for_(it, repo.solvablesBegin(), repo.solvablesEnd()){
@@ -398,7 +398,7 @@ index d0497770a..8ffaceb8c 100644
  		PoolItem(*it).status().setToBeInstalled(ResStatus::USER);
  	}
  
-@@ -2601,7 +2564,7 @@ pk_backend_install_files (PkBackend *backend, PkBackendJob *job, PkBitfield tran
+@@ -2608,7 +2571,7 @@ pk_backend_install_files (PkBackend *backend, PkBackendJob *job, PkBitfield tran
  static void
  backend_get_update_detail_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
  {
@@ -407,7 +407,7 @@ index d0497770a..8ffaceb8c 100644
  	ZyppJob zjob(job);
  	ZYpp::Ptr zypp = zjob.get_zypp();
  
-@@ -2622,7 +2585,7 @@ backend_get_update_detail_thread (PkBackendJob *job, GVariant *params, gpointer
+@@ -2629,7 +2592,7 @@ backend_get_update_detail_thread (PkBackendJob *job, GVariant *params, gpointer
  
  	for (uint i = 0; package_ids[i]; i++) {
  		sat::Solvable solvable = zypp_get_package_by_id (package_ids[i]);
@@ -416,7 +416,7 @@ index d0497770a..8ffaceb8c 100644
  		if (!solvable) {
  			// Previously stored package_id no longer matches any solvable.
  			zypp_backend_finished_error (job, PK_ERROR_ENUM_PACKAGE_NOT_FOUND,
-@@ -2700,7 +2663,7 @@ pk_backend_get_update_detail (PkBackend *backend, PkBackendJob *job, gchar **pac
+@@ -2707,7 +2670,7 @@ pk_backend_get_update_detail (PkBackend *backend, PkBackendJob *job, gchar **pac
  static void
  backend_install_packages_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
  {
@@ -425,16 +425,16 @@ index d0497770a..8ffaceb8c 100644
  
  	PkBitfield transaction_flags = 0;
  	gchar **package_ids;
-@@ -2732,7 +2695,7 @@ backend_install_packages_thread (PkBackendJob *job, GVariant *params, gpointer u
+@@ -2739,7 +2702,7 @@ backend_install_packages_thread (PkBackendJob *job, GVariant *params, gpointer u
  
  		guint to_install = 0;
  		for (guint i = 0; package_ids[i]; i++) {
 -			MIL << package_ids[i] << endl;
 +			//MIL << package_ids[i] << endl;
  			sat::Solvable solvable = zypp_get_package_by_id (package_ids[i]);
- 			
- 			to_install++;
-@@ -2813,7 +2776,7 @@ pk_backend_install_signature (PkBackend *backend, PkBackendJob *job, PkSigTypeEn
+ 
+ 			if (zypp_is_no_solvable(solvable)) {
+@@ -2826,7 +2789,7 @@ pk_backend_install_signature (PkBackend *backend, PkBackendJob *job, PkSigTypeEn
  static void
  backend_remove_packages_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
  {
@@ -443,7 +443,7 @@ index d0497770a..8ffaceb8c 100644
  	PkBitfield transaction_flags = 0;
  	gboolean autoremove = false;
  	gboolean allow_deps = false;
-@@ -2905,7 +2868,7 @@ pk_backend_remove_packages (PkBackend *backend, PkBackendJob *job, PkBitfield tr
+@@ -2916,7 +2879,7 @@ pk_backend_remove_packages (PkBackend *backend, PkBackendJob *job, PkBitfield tr
  static void
  backend_resolve_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
  {
@@ -452,7 +452,7 @@ index d0497770a..8ffaceb8c 100644
  	gchar **search;
  	PkBitfield _filters;
  	
-@@ -2925,7 +2888,7 @@ backend_resolve_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
+@@ -2936,7 +2899,7 @@ backend_resolve_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
  	zypp_build_pool (zypp, TRUE);
  
  	for (uint i = 0; search[i]; i++) {
@@ -461,7 +461,7 @@ index d0497770a..8ffaceb8c 100644
  		vector<sat::Solvable> v;
  		
  		/* build a list of packages with this name */
-@@ -2953,7 +2916,7 @@ backend_resolve_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
+@@ -2964,7 +2927,7 @@ backend_resolve_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
  		/* Filter the list of packages with this name to 'pkgs' */
  		for (vector<sat::Solvable>::iterator it = v.begin (); it != v.end (); ++it) {
  
@@ -470,7 +470,7 @@ index d0497770a..8ffaceb8c 100644
  
  			if (zypp_filter_solvable (_filters, *it) ||
  			    zypp_is_no_solvable(*it))
-@@ -2964,7 +2927,7 @@ backend_resolve_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
+@@ -2975,7 +2938,7 @@ backend_resolve_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
  			} else if (it->edition() > newest.edition() || Arch::compare(it->arch(), newest.arch()) > 0) {
  				newest = *it;
  			}
@@ -479,7 +479,7 @@ index d0497770a..8ffaceb8c 100644
  			pkgs.push_back (*it);
  		}
  		
-@@ -2973,7 +2936,7 @@ backend_resolve_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
+@@ -2984,7 +2947,7 @@ backend_resolve_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
  			/* 'newest' filter support */
  			if (pk_bitfield_contain (_filters, PK_FILTER_ENUM_NEWEST)) {
  				pkgs.clear();
@@ -488,7 +488,7 @@ index d0497770a..8ffaceb8c 100644
  				pkgs.push_back (newest);
  			} else if (pk_bitfield_contain (_filters, PK_FILTER_ENUM_NOT_NEWEST)) {
  				pkgs.erase (find (pkgs.begin (), pkgs.end(), newest));
-@@ -2996,7 +2959,7 @@ pk_backend_resolve (PkBackend *backend, PkBackendJob *job, PkBitfield filters, g
+@@ -3007,7 +2970,7 @@ pk_backend_resolve (PkBackend *backend, PkBackendJob *job, PkBitfield filters, g
  static void
  backend_find_packages_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
  {
@@ -497,7 +497,7 @@ index d0497770a..8ffaceb8c 100644
  	const gchar *search;
  	PkRoleEnum role;
  
-@@ -3097,7 +3060,7 @@ pk_backend_search_details (PkBackend *backend, PkBackendJob *job, PkBitfield fil
+@@ -3108,7 +3071,7 @@ pk_backend_search_details (PkBackend *backend, PkBackendJob *job, PkBitfield fil
  static void
  backend_search_group_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
  {
@@ -506,7 +506,7 @@ index d0497770a..8ffaceb8c 100644
  	const gchar *group;
  
  	gchar **search;
-@@ -3170,7 +3133,7 @@ pk_backend_search_files (PkBackend *backend, PkBackendJob *job, PkBitfield filte
+@@ -3181,7 +3144,7 @@ pk_backend_search_files (PkBackend *backend, PkBackendJob *job, PkBitfield filte
  void
  pk_backend_get_repo_list (PkBackend *backend, PkBackendJob *job, PkBitfield filters)
  {
@@ -515,7 +515,7 @@ index d0497770a..8ffaceb8c 100644
  
  	ZyppJob zjob(job);
  	ZYpp::Ptr zypp = zjob.get_zypp();
-@@ -3218,7 +3181,7 @@ pk_backend_get_repo_list (PkBackend *backend, PkBackendJob *job, PkBitfield filt
+@@ -3229,7 +3192,7 @@ pk_backend_get_repo_list (PkBackend *backend, PkBackendJob *job, PkBitfield filt
  void
  pk_backend_repo_enable (PkBackend *backend, PkBackendJob *job, const gchar *rid, gboolean enabled)
  {
@@ -524,7 +524,7 @@ index d0497770a..8ffaceb8c 100644
  	
  	ZyppJob zjob(job);
  	ZYpp::Ptr zypp = zjob.get_zypp();
-@@ -3261,7 +3224,7 @@ pk_backend_repo_enable (PkBackend *backend, PkBackendJob *job, const gchar *rid,
+@@ -3272,7 +3235,7 @@ pk_backend_repo_enable (PkBackend *backend, PkBackendJob *job, const gchar *rid,
  static void
  backend_get_files_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
  {
@@ -533,7 +533,7 @@ index d0497770a..8ffaceb8c 100644
  
  	gchar **package_ids;
  	g_variant_get(params, "(^a&s)",
-@@ -3327,7 +3290,7 @@ backend_get_packages_thread (PkBackendJob *job, GVariant *params, gpointer user_
+@@ -3338,7 +3301,7 @@ backend_get_packages_thread (PkBackendJob *job, GVariant *params, gpointer user_
  	g_variant_get (params, "(t)",
  		       &_filters);
  
@@ -542,7 +542,7 @@ index d0497770a..8ffaceb8c 100644
  
  	ZyppJob zjob(job);
  	ZYpp::Ptr zypp = zjob.get_zypp();
-@@ -3364,7 +3327,7 @@ pk_backend_get_packages (PkBackend *backend, PkBackendJob *job, PkBitfield filte
+@@ -3375,7 +3338,7 @@ pk_backend_get_packages (PkBackend *backend, PkBackendJob *job, PkBitfield filte
  static void
  backend_update_packages_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
  {
@@ -551,7 +551,7 @@ index d0497770a..8ffaceb8c 100644
  	PkBitfield transaction_flags = 0;
  	gchar **package_ids;
  	g_variant_get(params, "(t^a&s)",
-@@ -3389,7 +3352,7 @@ backend_update_packages_thread (PkBackendJob *job, GVariant *params, gpointer us
+@@ -3408,7 +3371,7 @@ backend_update_packages_thread (PkBackendJob *job, GVariant *params, gpointer us
  		PoolItem item(solvable);
  		// patches are special - they are not installed and can't have update candidates
  		if (sel->kind() != ResKind::patch) {
@@ -560,7 +560,7 @@ index d0497770a..8ffaceb8c 100644
  			if (sel->installedEmpty()) {
  				zypp_backend_finished_error (job, PK_ERROR_ENUM_DEP_RESOLUTION_FAILED, "Package %s is not installed", package_ids[i]);
  				return;
-@@ -3425,7 +3388,7 @@ pk_backend_update_packages (PkBackend *backend, PkBackendJob *job, PkBitfield tr
+@@ -3444,7 +3407,7 @@ pk_backend_update_packages (PkBackend *backend, PkBackendJob *job, PkBitfield tr
  static void
  backend_repo_set_data_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
  {
@@ -569,7 +569,7 @@ index d0497770a..8ffaceb8c 100644
  	const gchar *repo_id;
  	const gchar *parameter;
  	const gchar *value;
-@@ -3585,7 +3548,7 @@ pk_backend_what_provides_decompose (PkBackendJob *job, gchar **values)
+@@ -3604,7 +3567,7 @@ pk_backend_what_provides_decompose (PkBackendJob *job, gchar **values)
  static void
  backend_what_provides_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
  {
@@ -578,7 +578,7 @@ index d0497770a..8ffaceb8c 100644
  	
  	gchar **values;
  	PkBitfield _filters;
-@@ -3645,7 +3608,7 @@ backend_what_provides_thread (PkBackendJob *job, GVariant *params, gpointer user
+@@ -3664,7 +3627,7 @@ backend_what_provides_thread (PkBackendJob *job, GVariant *params, gpointer user
  		
  		guint len = g_strv_length (search);
  		for (guint i=0; i<len; i++) {
@@ -587,7 +587,7 @@ index d0497770a..8ffaceb8c 100644
  			Capability cap (search[i]);
  			sat::WhatProvides prov (cap);
  			
-@@ -3696,7 +3659,7 @@ pk_backend_get_mime_types (PkBackend *backend)
+@@ -3715,7 +3678,7 @@ pk_backend_get_mime_types (PkBackend *backend)
  static void
  backend_download_packages_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
  {
@@ -596,7 +596,7 @@ index d0497770a..8ffaceb8c 100644
  	gchar **package_ids;
  	const gchar *tmpDir;
  
-@@ -3818,19 +3781,19 @@ backend_upgrade_system_thread (PkBackendJob *job, GVariant *params, gpointer use
+@@ -3837,19 +3800,19 @@ backend_upgrade_system_thread (PkBackendJob *job, GVariant *params, gpointer use
  	 **/
  	switch (parameters->upgrade_kind) {
  		case PK_UPGRADE_KIND_ENUM_MINIMAL:
@@ -619,7 +619,7 @@ index d0497770a..8ffaceb8c 100644
  			break;
  	}
  	delete parameters;
-@@ -3857,25 +3820,25 @@ backend_upgrade_system_thread (PkBackendJob *job, GVariant *params, gpointer use
+@@ -3876,25 +3839,25 @@ backend_upgrade_system_thread (PkBackendJob *job, GVariant *params, gpointer use
  		ResPool pool = zypp_build_pool (zypp, TRUE);
  
  		if (install_pattern) {

@@ -1,4 +1,4 @@
-From 7e6c2968884bc6425b007cc8458f56d744d42f80 Mon Sep 17 00:00:00 2001
+From a27b68265988eb0bc7650346402074acd4060027 Mon Sep 17 00:00:00 2001
 From: Pekka Vuorela <pekka.vuorela@jollamobile.com>
 Date: Thu, 12 Oct 2017 14:45:09 +0300
 Subject: [PATCH 06/38] Builtin policy and whitelist. Contributes to JB#14776
@@ -8,7 +8,7 @@ Subject: [PATCH 06/38] Builtin policy and whitelist. Contributes to JB#14776
  1 file changed, 84 insertions(+)
 
 diff --git a/src/pk-transaction.c b/src/pk-transaction.c
-index 859f66f64..4f7c73435 100644
+index 1d006c782..f9cf35167 100644
 --- a/src/pk-transaction.c
 +++ b/src/pk-transaction.c
 @@ -36,6 +36,7 @@
@@ -19,7 +19,7 @@ index 859f66f64..4f7c73435 100644
  
  #include <glib/gstdio.h>
  #include <glib/gi18n.h>
-@@ -2393,6 +2394,87 @@ out:
+@@ -2392,6 +2393,87 @@ out:
  }
  
  /**
@@ -107,7 +107,7 @@ index 859f66f64..4f7c73435 100644
   * pk_transaction_authorize_actions:
   *
   * Param actions is an array of policy actions that shall be authorized. They
-@@ -2626,6 +2708,8 @@ pk_transaction_obtain_authorization (PkTransaction *transaction,
+@@ -2625,6 +2707,8 @@ pk_transaction_obtain_authorization (PkTransaction *transaction,
  				 PK_TRANSACTION_FLAG_ENUM_ONLY_DOWNLOAD) ||
  			pk_bitfield_contain (transaction->priv->cached_transaction_flags,
  				 PK_TRANSACTION_FLAG_ENUM_SIMULATE) ||

@@ -1,4 +1,4 @@
-From 8c77b74024c242d5c1e2e13383ac72d44d7b89a9 Mon Sep 17 00:00:00 2001
+From d23d0248e8be668b23df3479cf43b50186ac0283 Mon Sep 17 00:00:00 2001
 From: Pekka Vuorela <pekka.vuorela@jollamobile.com>
 Date: Fri, 13 Oct 2017 12:56:37 +0300
 Subject: [PATCH 10/38] zypp backend: Implement upgrade-system (like 'zypper
@@ -26,7 +26,7 @@ be carried out offline. Some preparations for other methods added.
  1 file changed, 115 insertions(+), 3 deletions(-)
 
 diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
-index 129b243b4..7dbf6d158 100644
+index c1c2c5ad4..43915f47c 100644
 --- a/backends/zypp/pk-backend-zypp.cpp
 +++ b/backends/zypp/pk-backend-zypp.cpp
 @@ -5,6 +5,9 @@
@@ -93,7 +93,7 @@ index 129b243b4..7dbf6d158 100644
  				}
  				
  				if (!zypp_backend_pool_item_notify (job, *it, TRUE))
-@@ -3614,6 +3630,102 @@ pk_backend_download_packages (PkBackend *backend, PkBackendJob *job, gchar **pac
+@@ -3633,6 +3649,102 @@ pk_backend_download_packages (PkBackend *backend, PkBackendJob *job, gchar **pac
  }
  
  /**

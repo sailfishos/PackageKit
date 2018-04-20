@@ -1,17 +1,17 @@
-From bf2b161c78e6325c9f429e26eae3b2344152f172 Mon Sep 17 00:00:00 2001
+From b6172874ab2db87281dc725581de3347b7c5f0a4 Mon Sep 17 00:00:00 2001
 From: Thomas Perl <thomas.perl@jolla.com>
 Date: Tue, 11 Mar 2014 13:20:52 +0100
-Subject: [PATCH 25/38] Clear metadata when disabling repositories. JB#15874
+Subject: [PATCH 24/38] Clear metadata when disabling repositories. JB#15874
 
 ---
  backends/zypp/pk-backend-zypp.cpp | 1 +
  1 file changed, 1 insertion(+)
 
 diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
-index b3e4e6147..95a929da1 100644
+index e9012bc10..2b60a3529 100644
 --- a/backends/zypp/pk-backend-zypp.cpp
 +++ b/backends/zypp/pk-backend-zypp.cpp
-@@ -3346,6 +3346,7 @@ pk_backend_repo_enable (PkBackend *backend, PkBackendJob *job, const gchar *rid,
+@@ -3361,6 +3361,7 @@ pk_backend_repo_enable (PkBackend *backend, PkBackendJob *job, const gchar *rid,
  		repo.setEnabled (enabled);
  		manager.modifyRepository (rid, repo);
  		if (!enabled) {

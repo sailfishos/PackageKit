@@ -1,4 +1,4 @@
-From b910af931b0b92126088e297febdbb1d939c889b Mon Sep 17 00:00:00 2001
+From 1186fb30ceb5175357d637ddd18619b25eeca209 Mon Sep 17 00:00:00 2001
 From: Thomas Perl <thomas.perl@jolla.com>
 Date: Tue, 11 Feb 2014 11:13:54 +0100
 Subject: [PATCH 23/38] Validate RPM arch before local-install. Fixes JB#15666
@@ -8,10 +8,10 @@ Subject: [PATCH 23/38] Validate RPM arch before local-install. Fixes JB#15666
  1 file changed, 9 insertions(+)
 
 diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
-index a2e876cf0..31a5666e1 100644
+index b061cb01f..e9012bc10 100644
 --- a/backends/zypp/pk-backend-zypp.cpp
 +++ b/backends/zypp/pk-backend-zypp.cpp
-@@ -2623,6 +2623,15 @@ backend_install_files_thread (PkBackendJob *job, GVariant *params, gpointer user
+@@ -2630,6 +2630,15 @@ backend_install_files_thread (PkBackendJob *job, GVariant *params, gpointer user
  			return;
  		}
  

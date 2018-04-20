@@ -1,7 +1,7 @@
-From 01fdb9a2126c2678fa3c0dba785ac8172b7a4779 Mon Sep 17 00:00:00 2001
+From 3a382a1cd70f3324435202da755509f831b53891 Mon Sep 17 00:00:00 2001
 From: Thomas Perl <m@thp.io>
 Date: Thu, 5 Feb 2015 18:36:29 +0100
-Subject: [PATCH 31/38] Report distro upgrade size in custom request
+Subject: [PATCH 30/38] Report distro upgrade size in custom request
 
 If carrying out a distro-upgrade, the required size can be determined
 via a custom "nemo::query-size:" prefix to the pattern name, e.g.:
@@ -18,7 +18,7 @@ The error ID is PK_ERROR_ENUM_NO_DISTRO_UPGRADE_DATA.
  1 file changed, 29 insertions(+), 2 deletions(-)
 
 diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
-index 62ad0baf5..2658f63f7 100644
+index e575f980e..d80187f50 100644
 --- a/backends/zypp/pk-backend-zypp.cpp
 +++ b/backends/zypp/pk-backend-zypp.cpp
 @@ -1812,7 +1812,7 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo
@@ -61,7 +61,7 @@ index 62ad0baf5..2658f63f7 100644
  		ZYppCommitResult result = zypp->commit (policy);
  
  		bool worked = result.allDone();
-@@ -4076,7 +4093,16 @@ backend_upgrade_system_thread (PkBackendJob *job, GVariant *params, gpointer use
+@@ -4099,7 +4116,16 @@ backend_upgrade_system_thread (PkBackendJob *job, GVariant *params, gpointer use
  {
  	DistUpgrade *parameters = static_cast<DistUpgrade *>(user_data);
  	PkBitfield transaction_flags = 0;
@@ -79,7 +79,7 @@ index 62ad0baf5..2658f63f7 100644
  	bool install_pattern = false;
  
  	/**
-@@ -4138,6 +4164,7 @@ backend_upgrade_system_thread (PkBackendJob *job, GVariant *params, gpointer use
+@@ -4161,6 +4187,7 @@ backend_upgrade_system_thread (PkBackendJob *job, GVariant *params, gpointer use
  			zypp_get_packages_by_name(pattern_name.c_str(), ResKind::pattern, patterns);
  
  			if (patterns.size() == 0) {

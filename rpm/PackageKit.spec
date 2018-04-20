@@ -5,7 +5,7 @@
 
 Summary:   Package management service
 Name:      PackageKit
-Version:   1.1.7
+Version:   1.1.9
 Release:   1
 License:   GPLv2+ and LGPLv2.1+
 Group:     System/Libraries
@@ -38,21 +38,21 @@ Patch20: 0020-zypp-Really-really-refresh-when-force-is-set.patch
 Patch21: 0021-zypp-Remove-old-leftover-PK_TMP_DIR-on-localinstall.patch
 Patch22: 0022-zypp-Implement-single-repo-refresh-feature.patch
 Patch23: 0023-Validate-RPM-arch-before-local-install.-Fixes-JB-156.patch
-Patch24: 0024-Fix-possible-memory-leaks-with-heap-allocated-items-.patch
-Patch25: 0025-Clear-metadata-when-disabling-repositories.-JB-15874.patch
-Patch26: 0026-Handle-and-log-C-exceptions-in-all-threads.patch
-Patch27: 0027-Allow-scheduled-rebuilddb-runs-on-next-boot.patch
-Patch28: 0028-Allow-cancelling-of-downloads.patch
-Patch29: 0029-Also-abort-refresh-when-job-is-cancelled.patch
-Patch30: 0030-Allow-searching-for-capabilities.patch
-Patch31: 0031-Report-distro-upgrade-size-in-custom-request.patch
-Patch32: 0032-Fix-download-size-calculation-prepare-for-cache-size.patch
-Patch33: 0033-Separate-dist-upgrade-cache-directory-from-main-cach.patch
-Patch34: 0034-Force-an-implicit-cache-refresh-before-checking-the-.patch
-Patch35: 0035-make-sure-that-the-custom-config-is-set-for-synchron.patch
-Patch36: 0036-Fixed-implementation-of-finding-newest-package-while.patch
-Patch37: 0037-Revert-dependency-on-libzypp-version-14-as-we-cannot.patch
-Patch38: 0038-PK_FILTER_ENUM_ARCH-_NOT_ARCH-to-filter-based-on-com.patch
+Patch24: 0024-Clear-metadata-when-disabling-repositories.-JB-15874.patch
+Patch25: 0025-Handle-and-log-C-exceptions-in-all-threads.patch
+Patch26: 0026-Allow-scheduled-rebuilddb-runs-on-next-boot.patch
+Patch27: 0027-Allow-cancelling-of-downloads.patch
+Patch28: 0028-Also-abort-refresh-when-job-is-cancelled.patch
+Patch29: 0029-Allow-searching-for-capabilities.patch
+Patch30: 0030-Report-distro-upgrade-size-in-custom-request.patch
+Patch31: 0031-Fix-download-size-calculation-prepare-for-cache-size.patch
+Patch32: 0032-Separate-dist-upgrade-cache-directory-from-main-cach.patch
+Patch33: 0033-Force-an-implicit-cache-refresh-before-checking-the-.patch
+Patch34: 0034-make-sure-that-the-custom-config-is-set-for-synchron.patch
+Patch35: 0035-Fixed-implementation-of-finding-newest-package-while.patch
+Patch36: 0036-Revert-dependency-on-libzypp-version-14-as-we-cannot.patch
+Patch37: 0037-PK_FILTER_ENUM_ARCH-_NOT_ARCH-to-filter-based-on-com.patch
+Patch38: 0038-Downgrade-Glib-dependency.patch
 
 Requires: PackageKit-zypp = %{version}-%{release}
 Requires: shared-mime-info

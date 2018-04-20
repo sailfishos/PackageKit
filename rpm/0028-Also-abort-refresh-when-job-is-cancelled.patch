@@ -1,14 +1,14 @@
-From b8c60f10a9521a13c218ea488fc1677295a13811 Mon Sep 17 00:00:00 2001
+From 71f342edc4a32a6603fdd73de3dfec29ada23e86 Mon Sep 17 00:00:00 2001
 From: Thomas Perl <thomas.perl@jolla.com>
 Date: Mon, 12 May 2014 19:02:38 +0200
-Subject: [PATCH 29/38] Also abort refresh when job is cancelled
+Subject: [PATCH 28/38] Also abort refresh when job is cancelled
 
 ---
  backends/zypp/pk-backend-zypp.cpp | 18 ++++++++++++++----
  1 file changed, 14 insertions(+), 4 deletions(-)
 
 diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
-index 31d6b8ba9..c66da79c7 100644
+index a027ee5e3..c30bb61c5 100644
 --- a/backends/zypp/pk-backend-zypp.cpp
 +++ b/backends/zypp/pk-backend-zypp.cpp
 @@ -2045,6 +2045,11 @@ zypp_refresh_cache (PkBackendJob *job, ZYpp::Ptr zypp, gboolean force)
@@ -23,7 +23,7 @@ index 31d6b8ba9..c66da79c7 100644
  		if (!zypp_is_valid_repo (job, repo))
  			return FALSE;
  		if (pk_backend_job_get_is_error_set (job))
-@@ -2589,11 +2594,16 @@ backend_refresh_cache_thread (PkBackendJob *job, GVariant *params, gpointer user
+@@ -2596,11 +2601,16 @@ backend_refresh_cache_thread (PkBackendJob *job, GVariant *params, gpointer user
  	ZyppJob zjob(job);
  	ZYpp::Ptr zypp = zjob.get_zypp();
  

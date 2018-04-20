@@ -1,17 +1,17 @@
-From 1e0a8dc77b554386a504e2d7b63926ae049c7dc5 Mon Sep 17 00:00:00 2001
+From 97ef4f334360a2a4053ea57be68870efefb788d8 Mon Sep 17 00:00:00 2001
 From: Thomas Perl <thomas.perl@jolla.com>
 Date: Thu, 15 May 2014 11:17:31 +0200
-Subject: [PATCH 30/38] Allow searching for capabilities
+Subject: [PATCH 29/38] Allow searching for capabilities
 
 ---
  backends/zypp/pk-backend-zypp.cpp | 12 +++++++++++-
  1 file changed, 11 insertions(+), 1 deletion(-)
 
 diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
-index c66da79c7..62ad0baf5 100644
+index c30bb61c5..e575f980e 100644
 --- a/backends/zypp/pk-backend-zypp.cpp
 +++ b/backends/zypp/pk-backend-zypp.cpp
-@@ -3287,7 +3287,9 @@ backend_find_packages_thread (PkBackendJob *job, GVariant *params, gpointer user
+@@ -3302,7 +3302,9 @@ backend_find_packages_thread (PkBackendJob *job, GVariant *params, gpointer user
  	vector<sat::Solvable> v;
  
  	PoolQuery q;
@@ -22,7 +22,7 @@ index c66da79c7..62ad0baf5 100644
  	q.setCaseSensitive( true );
  	q.setMatchSubstring();
  
-@@ -3298,6 +3300,14 @@ backend_find_packages_thread (PkBackendJob *job, GVariant *params, gpointer user
+@@ -3313,6 +3315,14 @@ backend_find_packages_thread (PkBackendJob *job, GVariant *params, gpointer user
  		q.addKind( ResKind::pattern );
  		q.addKind( ResKind::srcpackage );
  		q.addAttribute( sat::SolvAttr::name );

@@ -1,4 +1,4 @@
-From e0bd9599191e1331514faf7585bd7a11ffda12b4 Mon Sep 17 00:00:00 2001
+From 6bd0c55e9da2e49fdd2e62fd9c781fcde0b27b75 Mon Sep 17 00:00:00 2001
 From: Andrew Branson <andrew.branson@jollamobile.com>
 Date: Thu, 13 Oct 2016 09:48:20 +0200
 Subject: [PATCH 01/38] Suppress gtk-doc building
@@ -50,7 +50,7 @@ index 41481400f..a981607d2 100755
  if test x$NOCONFIGURE = x; then
    echo Running $srcdir/configure $conf_flags "$@" ...
 diff --git a/configure.ac b/configure.ac
-index 2d36e26e1..fcb3a5b4e 100644
+index d579d4ad0..291fd448e 100644
 --- a/configure.ac
 +++ b/configure.ac
 @@ -81,7 +81,7 @@ AM_GLIB_GNU_GETTEXT
@@ -62,7 +62,7 @@ index 2d36e26e1..fcb3a5b4e 100644
  
  AC_PATH_PROG(GLIB_GENMARSHAL, glib-genmarshal)
  AC_PATH_PROG(GLIB_MKENUMS, glib-mkenums)
-@@ -525,10 +525,6 @@ dnl ---------------------------------------------------------------------------
+@@ -523,10 +523,6 @@ dnl ---------------------------------------------------------------------------
  AC_CONFIG_FILES([
  Makefile
  etc/Makefile

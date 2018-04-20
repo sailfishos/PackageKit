@@ -1,4 +1,4 @@
-From 8e817e03f35b87f25bd36d6309ba376eba0cdd8c Mon Sep 17 00:00:00 2001
+From 446884ed69f1a374b0386662ed529de2d63060f8 Mon Sep 17 00:00:00 2001
 From: Thomas Perl <thomas.perl@jollamobile.com>
 Date: Mon, 19 Aug 2013 12:48:50 +0200
 Subject: [PATCH 13/38] zypp Backend: Look for patterns matching distroId and
@@ -20,10 +20,10 @@ not installed (as "minimal" signifies "download only" in our case).
  1 file changed, 24 insertions(+), 2 deletions(-)
 
 diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
-index 3bce8138a..5d08d4423 100644
+index c5dc6df38..24de00d61 100644
 --- a/backends/zypp/pk-backend-zypp.cpp
 +++ b/backends/zypp/pk-backend-zypp.cpp
-@@ -3727,7 +3727,8 @@ backend_upgrade_system_thread (PkBackendJob *job, GVariant *params, gpointer use
+@@ -3746,7 +3746,8 @@ backend_upgrade_system_thread (PkBackendJob *job, GVariant *params, gpointer use
  {
  	DistUpgrade *parameters = static_cast<DistUpgrade *>(user_data);
  	PkBitfield transaction_flags = 0;
@@ -33,7 +33,7 @@ index 3bce8138a..5d08d4423 100644
  
  	/**
  	 * Possible values for upgrade_kind:
-@@ -3746,9 +3747,12 @@ backend_upgrade_system_thread (PkBackendJob *job, GVariant *params, gpointer use
+@@ -3765,9 +3766,12 @@ backend_upgrade_system_thread (PkBackendJob *job, GVariant *params, gpointer use
  			MIL << "Downloading upgrades (no installation)" << std::endl;
  			pk_bitfield_add(transaction_flags,
  					PK_TRANSACTION_FLAG_ENUM_ONLY_DOWNLOAD);
@@ -47,7 +47,7 @@ index 3bce8138a..5d08d4423 100644
  			break;
  		case PK_UPGRADE_KIND_ENUM_DEFAULT:
  		default:
-@@ -3778,6 +3782,24 @@ backend_upgrade_system_thread (PkBackendJob *job, GVariant *params, gpointer use
+@@ -3797,6 +3801,24 @@ backend_upgrade_system_thread (PkBackendJob *job, GVariant *params, gpointer use
  		// Must be called after zypp_refresh_cache to see locally-installed files
  		ResPool pool = zypp_build_pool (zypp, TRUE);
  

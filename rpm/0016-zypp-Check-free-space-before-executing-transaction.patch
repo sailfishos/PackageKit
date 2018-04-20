@@ -1,4 +1,4 @@
-From 500dafa43c72729f8ba584b03f818497a314c534 Mon Sep 17 00:00:00 2001
+From 89a94b81f81f5ade8c845f453ff8cce407024894 Mon Sep 17 00:00:00 2001
 From: Thomas Perl <thomas.perl@jollamobile.com>
 Date: Thu, 3 Oct 2013 12:28:46 +0200
 Subject: [PATCH 16/38] zypp: Check free space before executing transaction
@@ -20,7 +20,7 @@ Take uninstalled due to upgrade packages into account in size calculations
  1 file changed, 48 insertions(+), 10 deletions(-)
 
 diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
-index 5da451915..d0497770a 100644
+index 9e12e4818..46630d4af 100644
 --- a/backends/zypp/pk-backend-zypp.cpp
 +++ b/backends/zypp/pk-backend-zypp.cpp
 @@ -205,6 +205,17 @@ zypp_build_package_id_from_resolvable (const sat::Solvable &resolvable)
@@ -102,7 +102,7 @@ index 5da451915..d0497770a 100644
  		ZYppCommitResult result = zypp->commit (policy);
  
  		bool worked = result.allDone();
-@@ -3657,7 +3698,6 @@ backend_download_packages_thread (PkBackendJob *job, GVariant *params, gpointer
+@@ -3676,7 +3717,6 @@ backend_download_packages_thread (PkBackendJob *job, GVariant *params, gpointer
  {
  	MIL << endl;
  	gchar **package_ids;
@@ -110,7 +110,7 @@ index 5da451915..d0497770a 100644
  	const gchar *tmpDir;
  
  	g_variant_get(params, "(^a&ss)",
-@@ -3689,18 +3729,16 @@ backend_download_packages_thread (PkBackendJob *job, GVariant *params, gpointer
+@@ -3708,18 +3748,16 @@ backend_download_packages_thread (PkBackendJob *job, GVariant *params, gpointer
  				return;
  			}
  

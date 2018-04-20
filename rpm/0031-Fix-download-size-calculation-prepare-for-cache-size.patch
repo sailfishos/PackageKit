@@ -1,7 +1,7 @@
-From 4cb8983e3b63c9e09d4d6fab77aaf17247e35e28 Mon Sep 17 00:00:00 2001
+From e70f39146b3ea0ef000c4b25fb12b48e454cca6c Mon Sep 17 00:00:00 2001
 From: Thomas Perl <m@thp.io>
 Date: Fri, 13 Feb 2015 14:06:54 +0100
-Subject: [PATCH 32/38] Fix download size calculation, prepare for cache sizes
+Subject: [PATCH 31/38] Fix download size calculation, prepare for cache sizes
 
 Squashed:
 Fixed some size computations. Contributes to JB#31091
@@ -10,7 +10,7 @@ Fixed some size computations. Contributes to JB#31091
  1 file changed, 74 insertions(+), 17 deletions(-)
 
 diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
-index 2658f63f7..50096d7dc 100644
+index d80187f50..318485ca4 100644
 --- a/backends/zypp/pk-backend-zypp.cpp
 +++ b/backends/zypp/pk-backend-zypp.cpp
 @@ -96,6 +96,9 @@
