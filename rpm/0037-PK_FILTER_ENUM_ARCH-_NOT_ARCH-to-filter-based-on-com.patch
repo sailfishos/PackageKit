@@ -1,7 +1,7 @@
-From 518653fde4a834a2fd1edbed904a1cff685d2799 Mon Sep 17 00:00:00 2001
+From f56bd67f80923a29961631629221afa54f592c71 Mon Sep 17 00:00:00 2001
 From: Pekka Vuorela <pekka.vuorela@jollamobile.com>
 Date: Tue, 7 Nov 2017 13:17:00 +0200
-Subject: [PATCH 38/38] PK_FILTER_ENUM_ARCH / _NOT_ARCH to filter based on
+Subject: [PATCH 37/38] PK_FILTER_ENUM_ARCH / _NOT_ARCH to filter based on
  compatibility
 
 Upstream commit 310c944e262ba3e2 changed this to filter based on
@@ -18,7 +18,7 @@ i586 package for x86_64 device with i486 runtime. Like Jolla tablet.
  1 file changed, 2 insertions(+), 4 deletions(-)
 
 diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
-index 85fe55ed5..0f78cd180 100644
+index 4815be033..13f036b31 100644
 --- a/backends/zypp/pk-backend-zypp.cpp
 +++ b/backends/zypp/pk-backend-zypp.cpp
 @@ -1618,13 +1618,11 @@ zypp_filter_solvable (PkBitfield filters, const sat::Solvable &item)

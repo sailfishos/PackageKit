@@ -1,4 +1,4 @@
-From cb3fa2eacc8868512331cc00a0580297421ff936 Mon Sep 17 00:00:00 2001
+From a66a9504c067e9bae1b69d5a522b1539fb635c4b Mon Sep 17 00:00:00 2001
 From: Pekka Vuorela <pekka.vuorela@jollamobile.com>
 Date: Wed, 11 Oct 2017 18:32:00 +0300
 Subject: [PATCH 05/38] Partly revert "trivial: Remove some unused functions"
@@ -11,7 +11,7 @@ Need pk_dbus_get_pid for whitelisting
  2 files changed, 3 insertions(+), 1 deletion(-)
 
 diff --git a/src/pk-dbus.c b/src/pk-dbus.c
-index 5bb233914..98cc84bb3 100644
+index 189b3afdd..5502ea855 100644
 --- a/src/pk-dbus.c
 +++ b/src/pk-dbus.c
 @@ -97,7 +97,7 @@ pk_dbus_get_uid (PkDbus *dbus, const gchar *sender)

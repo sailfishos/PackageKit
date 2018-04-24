@@ -1,4 +1,4 @@
-From caa1cf2fa6a08c17b20eaabb35cbe537e3e9a4cc Mon Sep 17 00:00:00 2001
+From 58f338fe70a718442d7abe23fe09f08b840283a9 Mon Sep 17 00:00:00 2001
 From: Thomas Perl <thomas.perl@jolla.com>
 Date: Tue, 12 Nov 2013 14:47:26 +0100
 Subject: [PATCH 21/38] zypp: Remove old leftover PK_TMP_DIR on localinstall
@@ -8,10 +8,10 @@ Subject: [PATCH 21/38] zypp: Remove old leftover PK_TMP_DIR on localinstall
  1 file changed, 9 insertions(+)
 
 diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
-index 5eb3fe745..d4d0674e7 100644
+index 24ecdf94e..60017d211 100644
 --- a/backends/zypp/pk-backend-zypp.cpp
 +++ b/backends/zypp/pk-backend-zypp.cpp
-@@ -2633,6 +2633,15 @@ backend_install_files_thread (PkBackendJob *job, GVariant *params, gpointer user
+@@ -2640,6 +2640,15 @@ backend_install_files_thread (PkBackendJob *job, GVariant *params, gpointer user
  		}
  	}
  

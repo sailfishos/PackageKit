@@ -1,14 +1,14 @@
-From df80ce65fbcef143d7acca1e16f2fdbe695ebe64 Mon Sep 17 00:00:00 2001
+From b8d733dd9d081b6f6e471600b4572ebe2d9ba500 Mon Sep 17 00:00:00 2001
 From: Thomas Perl <thomas.perl@jolla.com>
 Date: Thu, 3 Apr 2014 09:36:52 +0200
-Subject: [PATCH 27/38] Allow scheduled rebuilddb runs on next boot
+Subject: [PATCH 26/38] Allow scheduled rebuilddb runs on next boot
 
 ---
  backends/zypp/pk-backend-zypp.cpp | 23 +++++++++++++++++++++--
  1 file changed, 21 insertions(+), 2 deletions(-)
 
 diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
-index 0b9b99c52..3b28379de 100644
+index c9f680579..a8bf2521b 100644
 --- a/backends/zypp/pk-backend-zypp.cpp
 +++ b/backends/zypp/pk-backend-zypp.cpp
 @@ -237,6 +237,25 @@ public:

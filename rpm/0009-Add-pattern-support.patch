@@ -1,4 +1,4 @@
-From a2b6434a8c07d2d0efa3e92d492bfa5389cff721 Mon Sep 17 00:00:00 2001
+From d506fcbc29705625d4c4ce423bce8a6724619ed9 Mon Sep 17 00:00:00 2001
 From: Pekka Vuorela <pekka.vuorela@jollamobile.com>
 Date: Thu, 12 Oct 2017 16:29:38 +0300
 Subject: [PATCH 09/38] Add pattern support
@@ -37,11 +37,11 @@ debugging similar filter-related issues in the future.
 
 [backends] zypp: Do not consider satisfied patterns "installed"
 ---
- backends/zypp/pk-backend-zypp.cpp | 94 ++++++++++++++++++++++++++++++++-------
- 1 file changed, 78 insertions(+), 16 deletions(-)
+ backends/zypp/pk-backend-zypp.cpp | 93 ++++++++++++++++++++++++++++++++-------
+ 1 file changed, 78 insertions(+), 15 deletions(-)
 
 diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
-index f89bdef2d..129b243b4 100644
+index 6d6833d7c..c1c2c5ad4 100644
 --- a/backends/zypp/pk-backend-zypp.cpp
 +++ b/backends/zypp/pk-backend-zypp.cpp
 @@ -154,6 +154,21 @@ guint _dl_count = 0;
@@ -193,18 +193,17 @@ index f89bdef2d..129b243b4 100644
  
  		match = FALSE;
  		for (sat_it_t i = installed.begin (); !match && i != installed.end (); i++) {
-@@ -2546,7 +2596,9 @@ backend_install_packages_thread (PkBackendJob *job, GVariant *params, gpointer u
+@@ -2559,6 +2609,9 @@ backend_install_packages_thread (PkBackendJob *job, GVariant *params, gpointer u
  			return;
  		}
- 		delete (items);
--
+ 
 +		// Rebuild pool after installation
 +		// TODO: PLU This does not help. Installed has still wrong status
 +		zypp_build_pool (zypp, TRUE, TRUE);
  		pk_backend_job_set_percentage (job, 100);
  
  	} catch (const Exception &ex) {
-@@ -2800,6 +2852,9 @@ backend_find_packages_thread (PkBackendJob *job, GVariant *params, gpointer user
+@@ -2810,6 +2863,9 @@ backend_find_packages_thread (PkBackendJob *job, GVariant *params, gpointer user
  	}
  
  	search = values[0];  //Fixme - support the possible multiple values (logical OR search)
@@ -214,7 +213,7 @@ index f89bdef2d..129b243b4 100644
  	role = pk_backend_job_get_role(job);
  
  	pk_backend_job_set_status (job, PK_STATUS_ENUM_QUERY);
-@@ -2816,6 +2871,7 @@ backend_find_packages_thread (PkBackendJob *job, GVariant *params, gpointer user
+@@ -2826,6 +2882,7 @@ backend_find_packages_thread (PkBackendJob *job, GVariant *params, gpointer user
  	case PK_ROLE_ENUM_SEARCH_NAME:
  		zypp_build_pool (zypp, TRUE); // seems to be necessary?
  		q.addKind( ResKind::package );
@@ -222,7 +221,7 @@ index f89bdef2d..129b243b4 100644
  		q.addKind( ResKind::srcpackage );
  		q.addAttribute( sat::SolvAttr::name );
  		// Note: The query result is NOT sorted packages first, then srcpackage.
-@@ -2825,6 +2881,7 @@ backend_find_packages_thread (PkBackendJob *job, GVariant *params, gpointer user
+@@ -2835,6 +2892,7 @@ backend_find_packages_thread (PkBackendJob *job, GVariant *params, gpointer user
  	case PK_ROLE_ENUM_SEARCH_DETAILS:
  		zypp_build_pool (zypp, TRUE); // seems to be necessary?
  		q.addKind( ResKind::package );
@@ -230,7 +229,7 @@ index f89bdef2d..129b243b4 100644
  		//q.addKind( ResKind::srcpackage );
  		q.addAttribute( sat::SolvAttr::name );
  		q.addAttribute( sat::SolvAttr::description );
-@@ -2834,6 +2891,7 @@ backend_find_packages_thread (PkBackendJob *job, GVariant *params, gpointer user
+@@ -2844,6 +2902,7 @@ backend_find_packages_thread (PkBackendJob *job, GVariant *params, gpointer user
  	case PK_ROLE_ENUM_SEARCH_FILE: {
  		zypp_build_pool (zypp, TRUE);
  		q.addKind( ResKind::package );
@@ -238,7 +237,7 @@ index f89bdef2d..129b243b4 100644
  		q.addAttribute( sat::SolvAttr::name );
  		q.addAttribute( sat::SolvAttr::description );
  		q.addAttribute( sat::SolvAttr::filelist );
-@@ -3098,12 +3156,12 @@ pk_backend_get_files(PkBackend *backend, PkBackendJob *job, gchar **package_ids)
+@@ -3108,12 +3167,12 @@ pk_backend_get_files(PkBackend *backend, PkBackendJob *job, gchar **package_ids)
  static void
  backend_get_packages_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
  {
@@ -253,7 +252,7 @@ index f89bdef2d..129b243b4 100644
  	ZyppJob zjob(job);
  	ZYpp::Ptr zypp = zjob.get_zypp();
  
-@@ -3119,6 +3177,10 @@ backend_get_packages_thread (PkBackendJob *job, GVariant *params, gpointer user_
+@@ -3129,6 +3188,10 @@ backend_get_packages_thread (PkBackendJob *job, GVariant *params, gpointer user_
  	for (ResPool::byKind_iterator it = pool.byKindBegin (ResKind::package); it != pool.byKindEnd (ResKind::package); ++it) {
  		v.push_back (it->satSolvable ());
  	}

@@ -1,4 +1,4 @@
-From d8ba6bca953ff4c197efc84924f37c82fd60acfc Mon Sep 17 00:00:00 2001
+From 38631bb79acbcaeb6d13f137697213a8f33d5cd6 Mon Sep 17 00:00:00 2001
 From: Juha Kallioinen <juha.kallioinen@jolla.com>
 Date: Mon, 28 Oct 2013 15:26:56 +0000
 Subject: [PATCH 07/38] Add l10n handler for missing roles
@@ -9,10 +9,10 @@ Without this when G_DEBUG env is set, glib will emit a warning.
  1 file changed, 4 insertions(+)
 
 diff --git a/lib/packagekit-glib2/pk-enum.c b/lib/packagekit-glib2/pk-enum.c
-index 63385ca8c..4a3ba26bd 100644
+index a0ca160d4..c2bcf700d 100644
 --- a/lib/packagekit-glib2/pk-enum.c
 +++ b/lib/packagekit-glib2/pk-enum.c
-@@ -1249,6 +1249,10 @@ pk_role_enum_to_localised_present (PkRoleEnum role)
+@@ -1251,6 +1251,10 @@ pk_role_enum_to_localised_present (PkRoleEnum role)
  		/* TRANSLATORS: The role of the transaction, in present tense */
  		text = dgettext("PackageKit", "Getting system upgrades");
  		break;

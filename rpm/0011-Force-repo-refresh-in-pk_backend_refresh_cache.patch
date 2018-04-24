@@ -1,4 +1,4 @@
-From 7b091ceea944d7a0da34a3a5925ad6c26f527b7d Mon Sep 17 00:00:00 2001
+From a4d87331b97d3435b4ae74422b033f4c256d3830 Mon Sep 17 00:00:00 2001
 From: Pekka Vuorela <pekka.vuorela@jollamobile.com>
 Date: Fri, 13 Oct 2017 14:23:12 +0300
 Subject: [PATCH 11/38] Force repo refresh in pk_backend_refresh_cache
@@ -13,10 +13,10 @@ command-line "pkcon" client doesn't provide a way to set force.
  1 file changed, 1 insertion(+), 6 deletions(-)
 
 diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
-index 7dbf6d158..4d01e6e16 100644
+index 43915f47c..df0f068d5 100644
 --- a/backends/zypp/pk-backend-zypp.cpp
 +++ b/backends/zypp/pk-backend-zypp.cpp
-@@ -2213,11 +2213,6 @@ pk_backend_get_distro_upgrades (PkBackend *backend, PkBackendJob *job)
+@@ -2220,11 +2220,6 @@ pk_backend_get_distro_upgrades (PkBackend *backend, PkBackendJob *job)
  static void
  backend_refresh_cache_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
  {
@@ -28,7 +28,7 @@ index 7dbf6d158..4d01e6e16 100644
  	ZyppJob zjob(job);
  	ZYpp::Ptr zypp = zjob.get_zypp();
  
-@@ -2225,7 +2220,7 @@ backend_refresh_cache_thread (PkBackendJob *job, GVariant *params, gpointer user
+@@ -2232,7 +2227,7 @@ backend_refresh_cache_thread (PkBackendJob *job, GVariant *params, gpointer user
  		return;
  	}
  

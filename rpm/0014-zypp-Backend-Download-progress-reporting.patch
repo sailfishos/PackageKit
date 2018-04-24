@@ -1,4 +1,4 @@
-From 6bc86730c441dcc7d9fbd01bf773b454e3505e72 Mon Sep 17 00:00:00 2001
+From bbec970b6746b3a3e0e8ef4816335aa53c9ed72f Mon Sep 17 00:00:00 2001
 From: Pekka Vuorela <pekka.vuorela@jollamobile.com>
 Date: Fri, 13 Oct 2017 15:25:51 +0300
 Subject: [PATCH 14/38] zypp Backend: Download progress reporting
@@ -11,7 +11,7 @@ Include downloading of packages in total progress calculation.
  1 file changed, 24 insertions(+), 4 deletions(-)
 
 diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
-index 5d08d4423..44dd11868 100644
+index 24de00d61..01b887190 100644
 --- a/backends/zypp/pk-backend-zypp.cpp
 +++ b/backends/zypp/pk-backend-zypp.cpp
 @@ -211,6 +211,7 @@ static PkBackendZYppPrivate *priv = 0;

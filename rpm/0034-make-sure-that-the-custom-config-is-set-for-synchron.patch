@@ -1,7 +1,7 @@
-From e6b7c3a6ba9f02d65febd88fc7e12ba08254af8d Mon Sep 17 00:00:00 2001
+From 83d5eae58f80c103da52964a693c41afc4aec877 Mon Sep 17 00:00:00 2001
 From: Martin Grimme <martin.grimme@gmail.com>
 Date: Fri, 17 Jul 2015 14:12:00 +0200
-Subject: [PATCH 35/38] make sure that the custom config is set for synchronous
+Subject: [PATCH 34/38] make sure that the custom config is set for synchronous
  operations as well. Fixes JB#30707
 
 ---
@@ -9,10 +9,10 @@ Subject: [PATCH 35/38] make sure that the custom config is set for synchronous
  1 file changed, 4 insertions(+)
 
 diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
-index f27cfdec1..76d9e2722 100644
+index 027f209c0..e78ff9a92 100644
 --- a/backends/zypp/pk-backend-zypp.cpp
 +++ b/backends/zypp/pk-backend-zypp.cpp
-@@ -3694,6 +3694,8 @@ pk_backend_get_repo_list (PkBackend *backend, PkBackendJob *job, PkBitfield filt
+@@ -3709,6 +3709,8 @@ pk_backend_get_repo_list (PkBackend *backend, PkBackendJob *job, PkBitfield filt
  {
  	//MIL << endl;
  
@@ -21,7 +21,7 @@ index f27cfdec1..76d9e2722 100644
  	ZyppJob zjob(job);
  	ZYpp::Ptr zypp = zjob.get_zypp();
  
-@@ -3742,6 +3744,8 @@ pk_backend_repo_enable (PkBackend *backend, PkBackendJob *job, const gchar *rid,
+@@ -3757,6 +3759,8 @@ pk_backend_repo_enable (PkBackend *backend, PkBackendJob *job, const gchar *rid,
  {
  	//MIL << endl;
  	

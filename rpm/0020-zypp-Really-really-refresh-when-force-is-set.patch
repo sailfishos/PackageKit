@@ -1,4 +1,4 @@
-From 1c390d2fdb247202fa14b987bb4602aafa614235 Mon Sep 17 00:00:00 2001
+From 97d90efd269035af23b4b315137ef99beff7be22 Mon Sep 17 00:00:00 2001
 From: Thomas Perl <thomas.perl@jollamobile.com>
 Date: Tue, 29 Oct 2013 01:37:23 +0100
 Subject: [PATCH 20/38] zypp: Really, really refresh when "force" is set
@@ -11,7 +11,7 @@ some timeout in libzypp's refresh logic.
  1 file changed, 4 insertions(+), 1 deletion(-)
 
 diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
-index a7b7daa3e..5eb3fe745 100644
+index e36f498d1..24ecdf94e 100644
 --- a/backends/zypp/pk-backend-zypp.cpp
 +++ b/backends/zypp/pk-backend-zypp.cpp
 @@ -1228,8 +1228,11 @@ class AbortTransactionException {

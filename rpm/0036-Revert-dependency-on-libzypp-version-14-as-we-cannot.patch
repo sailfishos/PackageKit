@@ -1,7 +1,7 @@
-From f6cbf9c71d2fce4f343ed6c5fa8495b1c19a0707 Mon Sep 17 00:00:00 2001
+From 92994c67188088cf04e66d80dec6b6c749d65cbe Mon Sep 17 00:00:00 2001
 From: Martin Grimme <martin.grimme@gmail.com>
 Date: Fri, 2 Oct 2015 09:26:48 +0200
-Subject: [PATCH 37/38] Revert dependency on libzypp version 14 as we cannot
+Subject: [PATCH 36/38] Revert dependency on libzypp version 14 as we cannot
  have it yet. Contributes to JB#31091
 
 ---
@@ -9,7 +9,7 @@ Subject: [PATCH 37/38] Revert dependency on libzypp version 14 as we cannot
  1 file changed, 5 insertions(+), 4 deletions(-)
 
 diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
-index baf45bb33..85fe55ed5 100644
+index 4fc57983a..4815be033 100644
 --- a/backends/zypp/pk-backend-zypp.cpp
 +++ b/backends/zypp/pk-backend-zypp.cpp
 @@ -2090,14 +2090,15 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo

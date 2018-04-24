@@ -1,4 +1,4 @@
-From e088457d2eeb76f94c31c5ec41066e8652e0b809 Mon Sep 17 00:00:00 2001
+From 55da3f34c4e1d11be4c9592b21d2394d94f25de9 Mon Sep 17 00:00:00 2001
 From: Thomas Perl <thomas.perl@jolla.com>
 Date: Mon, 2 Dec 2013 10:28:48 +0100
 Subject: [PATCH 22/38] zypp: Implement single-repo refresh feature
@@ -22,10 +22,10 @@ we do not need to modify or add a new D-Bus API method to PackageKit.
  1 file changed, 8 insertions(+), 1 deletion(-)
 
 diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
-index d4d0674e7..a2e876cf0 100644
+index 60017d211..b061cb01f 100644
 --- a/backends/zypp/pk-backend-zypp.cpp
 +++ b/backends/zypp/pk-backend-zypp.cpp
-@@ -3596,6 +3596,13 @@ backend_repo_set_data_thread (PkBackendJob *job, GVariant *params, gpointer user
+@@ -3615,6 +3615,13 @@ backend_repo_set_data_thread (PkBackendJob *job, GVariant *params, gpointer user
  		} else if (g_ascii_strcasecmp (parameter, "name") == 0) {
  			repo.setName(value);
  			manager.modifyRepository (repo_id, repo);
@@ -39,7 +39,7 @@ index d4d0674e7..a2e876cf0 100644
  		} else if (g_ascii_strcasecmp (parameter, "prio") == 0) {
  			gint prio = 0;
  			gint length = strlen (value);
-@@ -3626,7 +3633,7 @@ backend_repo_set_data_thread (PkBackendJob *job, GVariant *params, gpointer user
+@@ -3645,7 +3652,7 @@ backend_repo_set_data_thread (PkBackendJob *job, GVariant *params, gpointer user
  			}
  
  		} else {
