@@ -3216,6 +3216,7 @@ backend_install_files_thread (PkBackendJob *job, GVariant *params, gpointer user
 		tmpRepo.addBaseUrl(Url::parseUrl(url));
 		tmpRepo.setEnabled (true);
 		tmpRepo.setAutorefresh (true);
+		tmpRepo.setGpgCheck (false);
 		tmpRepo.setAlias ("PK_TMP_DIR");
 		tmpRepo.setName ("PK_TMP_DIR");
 
