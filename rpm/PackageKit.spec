@@ -15,7 +15,6 @@ Source102: packagekit-zypp-override.conf
 
 Patch1:  0001-Suppress-gtk-doc-building.patch
 Patch2:  0002-Comments-out-c-11-14-checks.patch
-Patch3:  0003-Comment-out-upstream-usage-of-newer-zypp.patch
 Patch4:  0004-Add-support-for-CPU-keepalive-during-transaction.patch
 Patch5:  0005-Partly-revert-trivial-Remove-some-unused-functions-o.patch
 Patch6:  0006-Builtin-policy-and-whitelist.-Contributes-to-JB-1477.patch
@@ -48,9 +47,8 @@ Patch32: 0032-Separate-dist-upgrade-cache-directory-from-main-cach.patch
 Patch33: 0033-Force-an-implicit-cache-refresh-before-checking-the-.patch
 Patch34: 0034-make-sure-that-the-custom-config-is-set-for-synchron.patch
 Patch35: 0035-Fixed-implementation-of-finding-newest-package-while.patch
-Patch36: 0036-Revert-dependency-on-libzypp-version-14-as-we-cannot.patch
 Patch37: 0037-PK_FILTER_ENUM_ARCH-_NOT_ARCH-to-filter-based-on-com.patch
-Patch38: 0038-Downgrade-Glib-dependency.patch
+Patch38: 0038-Disable-GPG-signature-checking-on-temporary-local-re.patch
 
 Requires: PackageKit-zypp = %{version}-%{release}
 Requires: shared-mime-info
@@ -134,8 +132,6 @@ using PackageKit.
 %setup -q -n %{name}-%{version}/upstream
 %patch1 -p1
 %patch2 -p1
-# This one can be removed when libzypp is upgraded
-%patch3 -p1
 %patch4 -p1
 %patch5 -p1
 %patch6 -p1
@@ -168,8 +164,6 @@ using PackageKit.
 %patch33 -p1
 %patch34 -p1
 %patch35 -p1
-%patch36 -p1
-# This one can be removed when libzypp is upgraded
 %patch37 -p1
 %patch38 -p1
 

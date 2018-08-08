@@ -1,0 +1,17 @@
+From 0bf2bbc4a49ff7d44c1f14f97bf1fb6de3c7ab91 Tue, 7 Aug 2018 12:59:08 +0200
+From: Andrew Branson <andrew.branson@jollamobile.com>
+Date: Tue, 7 Aug 2018 12:58:44 +0200
+Subject: [PATCH] Disable GPG signature checking on temporary local repositories created to install local packages from file.
+
+diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
+index 82ba939..834786f 100644
+--- a/backends/zypp/pk-backend-zypp.cpp
++++ b/backends/zypp/pk-backend-zypp.cpp
+@@ -2340,6 +2340,7 @@
+ 		tmpRepo.addBaseUrl(Url::parseUrl(url));
+ 		tmpRepo.setEnabled (true);
+ 		tmpRepo.setAutorefresh (true);
++		tmpRepo.setGpgCheck (false);
+ 		tmpRepo.setAlias ("PK_TMP_DIR");
+ 		tmpRepo.setName ("PK_TMP_DIR");
+ 
