@@ -88,12 +88,13 @@ Requires: %{name} = %{version}-%{release}
 %description zypp
 A backend for PackageKit to enable zypp functionality.
 
-%package docs
+%package doc
 Summary: Documentation for PackageKit
 Group: Documentation
 Requires: %{name} = %{version}-%{release}
+Obsoletes: %{name}-docs
 
-%description docs
+%description doc
 %{summary}.
 
 %package glib
@@ -116,7 +117,6 @@ Requires: PackageKit-glib = %{version}-%{release}
 
 %description glib-devel
 GLib headers and libraries for PackageKit.
-
 
 %package command-not-found
 Summary: Ask the user to install command line programs automatically
@@ -209,7 +209,6 @@ done
         --disable-gstreamer-plugin \
         --enable-introspection=no \
         --enable-systemd \
-        --disable-man-pages \
         --disable-tests \
         --disable-device-rebind \
         --disable-bash_completion
@@ -248,6 +247,10 @@ echo "arch = %{_target_cpu}" >> %{buildroot}%{_sysconfdir}/zypp/packagekit-zypp-
 
 %find_lang %name
 
+mkdir -p %{buildroot}%{_docdir}/%{name}-%{version}
+install -m0644 -t %{buildroot}%{_docdir}/%{name}-%{version} \
+        AUTHORS README NEWS
+
 %post
 update-mime-database %{_datadir}/mime &> /dev/null || :
 
@@ -266,7 +269,7 @@ update-mime-database %{_datadir}/mime &> /dev/null || :
 
 %files -f %{name}.lang
 %defattr(-,root,root,-)
-%doc COPYING
+%license COPYING
 %dir %{_datadir}/PackageKit
 %dir %{_datadir}/PackageKit/helpers
 %dir %{_sysconfdir}/PackageKit
@@ -293,14 +296,15 @@ update-mime-database %{_datadir}/mime &> /dev/null || :
 %{_libexecdir}/pk-offline-update
 %{_libexecdir}/packagekit-direct
 
-%files docs
+%files doc
 %defattr(-,root,root,-)
-%doc README AUTHORS  COPYING
-#%{_mandir}/man1/*
+%{_docdir}/%{name}-%{version}
+%{_mandir}/man1/pkcon.1.gz
+%{_mandir}/man1/pkmon.1.gz
 
 %files zypp
 %defattr(-,root,root,-)
-%doc COPYING
+%license COPYING
 %{_libdir}/packagekit-backend/libpk_backend_zypp.so
 %{_libexecdir}/pk-rpm-db-clean
 %{_unitdir}/rpm-db-clean.service
@@ -308,22 +312,21 @@ update-mime-database %{_datadir}/mime &> /dev/null || :
 
 %files glib
 %defattr(-,root,root,-)
-%doc COPYING
+%license COPYING
 %{_libdir}/*packagekit-glib*.so.*
 
 %files command-not-found
 %defattr(-,root,root,-)
-%doc COPYING
+%license COPYING
 %{_sysconfdir}/profile.d/*
 %{_libexecdir}/pk-command-not-found
 %config(noreplace) %{_sysconfdir}/PackageKit/CommandNotFound.conf
 
 %files glib-devel
 %defattr(-,root,root,-)
-%doc README AUTHORS  COPYING
+%license COPYING
 %{_libdir}/libpackagekit-glib*.so
 %{_libdir}/pkgconfig/packagekit-glib2.pc
 %dir %{_includedir}/PackageKit
 %dir %{_includedir}/PackageKit/packagekit-glib2
 %{_includedir}/PackageKit/packagekit-glib*/*.h
-
