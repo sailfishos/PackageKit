@@ -113,7 +113,7 @@ Group: Development/Libraries
 Requires: %{name} = %{version}-%{release}
 Requires: pkgconfig
 Requires: sqlite-devel
-Requires: PackageKit-glib = %{version}-%{release}
+Requires: %{name}-glib = %{version}-%{release}
 
 %description glib-devel
 GLib headers and libraries for PackageKit.
@@ -122,7 +122,7 @@ GLib headers and libraries for PackageKit.
 Summary: Ask the user to install command line programs automatically
 Group: System/Libraries
 Requires: bash
-Requires: PackageKit-glib = %{version}-%{release}
+Requires: %{name}-glib = %{version}-%{release}
 
 %description command-not-found
 A simple helper that offers to install new packages on the command line
@@ -304,7 +304,6 @@ update-mime-database %{_datadir}/mime &> /dev/null || :
 
 %files zypp
 %defattr(-,root,root,-)
-%license COPYING
 %{_libdir}/packagekit-backend/libpk_backend_zypp.so
 %{_libexecdir}/pk-rpm-db-clean
 %{_unitdir}/rpm-db-clean.service
@@ -312,19 +311,16 @@ update-mime-database %{_datadir}/mime &> /dev/null || :
 
 %files glib
 %defattr(-,root,root,-)
-%license COPYING
 %{_libdir}/*packagekit-glib*.so.*
 
 %files command-not-found
 %defattr(-,root,root,-)
-%license COPYING
 %{_sysconfdir}/profile.d/*
 %{_libexecdir}/pk-command-not-found
 %config(noreplace) %{_sysconfdir}/PackageKit/CommandNotFound.conf
 
 %files glib-devel
 %defattr(-,root,root,-)
-%license COPYING
 %{_libdir}/libpackagekit-glib*.so
 %{_libdir}/pkgconfig/packagekit-glib2.pc
 %dir %{_includedir}/PackageKit
