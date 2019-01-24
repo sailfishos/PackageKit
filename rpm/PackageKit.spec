@@ -69,6 +69,7 @@ BuildRequires: pkgconfig(systemd)
 BuildRequires: pkgconfig(mce)
 BuildRequires: gobject-introspection-devel
 BuildRequires: vala-devel
+BuildRequires: libxslt
 
 Obsoletes: PackageKit-python
 Obsoletes: PackageKit-debug-install
