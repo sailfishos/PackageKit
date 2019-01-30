@@ -69,7 +69,6 @@ BuildRequires: pkgconfig(systemd)
 BuildRequires: pkgconfig(mce)
 BuildRequires: gobject-introspection-devel
 BuildRequires: vala-devel
-BuildRequires: libxslt
 
 Obsoletes: PackageKit-python
 Obsoletes: PackageKit-debug-install
@@ -210,6 +209,7 @@ done
         --disable-gstreamer-plugin \
         --enable-introspection=no \
         --enable-systemd \
+        --disable-man-pages \
         --disable-tests \
         --disable-device-rebind \
         --disable-bash_completion
@@ -300,8 +300,6 @@ update-mime-database %{_datadir}/mime &> /dev/null || :
 %files doc
 %defattr(-,root,root,-)
 %{_docdir}/%{name}-%{version}
-%{_mandir}/man1/pkcon.1.gz
-%{_mandir}/man1/pkmon.1.gz
 
 %files zypp
 %defattr(-,root,root,-)
