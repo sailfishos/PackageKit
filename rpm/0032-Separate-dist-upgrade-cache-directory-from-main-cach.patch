@@ -82,7 +82,7 @@ index 318485ca4..552c0fb4c 100644
 +{
 +	const char *target_path = "/var/cache/pk-zypp-cache";
 +	const char *path = dist_upgrade_mode ? "/home/.pk-zypp-dist-upgrade-cache"
-+		: "/var/cache/zypp";
++		: "/home/.zypp-cache";
 +
 +	char tmp[PATH_MAX];
 +	struct stat st;
