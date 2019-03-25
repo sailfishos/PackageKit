@@ -302,11 +302,17 @@ zypp_set_dist_upgrade_mode (gboolean dist_upgrade_mode)
 	return TRUE;
 }
 
-static void
-zypp_set_custom_config_file ()
+static gboolean
+zypp_set_custom_config (bool requires_dist_upgrade=FALSE)
 {
 	// override configuration values to control cache directory
 	setenv("ZYPP_CONF", "/etc/zypp/packagekit-zypp-override.conf", 1);
+
+	if (!zypp_set_dist_upgrade_mode (requires_dist_upgrade)) {
+		ERR << "Could not configure cache directory" << std::endl;
+		return false;
+	}
+	return true;
 }
 
 /*
@@ -426,27 +432,11 @@ zypp_backend_job_thread_create (PkBackendJob *job, PkBackendJobThreadFunc func,
 		gpointer user_data, GDestroyNotify destroy_func,
 		bool requires_dist_upgrade=false)
 {
-	// Use custom configuration for libzypp
-	zypp_set_custom_config_file ();
-
-	if (requires_dist_upgrade) {
-		// This transaction requires libzypp to be in dist-upgrade mode
-		if (!zypp_set_dist_upgrade_mode (TRUE)) {
-			ERR << "Could not configure dist-upgrade mode" << std::endl;
-			zypp_backend_finished_error (job,
-					PK_ERROR_ENUM_NO_DISTRO_UPGRADE_DATA,
-					"Could not configure dist-upgrade mode.");
-			return false;
-		}
-	} else {
-		// This transaction requires libzypp to be in non-dist-upgrade mode
-		if (!zypp_set_dist_upgrade_mode (FALSE)) {
-			ERR << "Could not configure normal mode" << std::endl;
-			zypp_backend_finished_error (job,
-					PK_ERROR_ENUM_NO_DISTRO_UPGRADE_DATA,
-					"Could not configure normal mode.");
-			return false;
-		}
+	if (!zypp_set_custom_config (requires_dist_upgrade)) {
+		zypp_backend_finished_error (job,
+				PK_ERROR_ENUM_NO_DISTRO_UPGRADE_DATA,
+				"Could not configure zypp cache.");
+		return false;
 	}
 
 	ZyppBackendThreadWrapperData *data = new ZyppBackendThreadWrapperData(func,
@@ -3934,7 +3924,11 @@ pk_backend_search_files (PkBackend *backend, PkBackendJob *job, PkBitfield filte
 void
 pk_backend_get_repo_list (PkBackend *backend, PkBackendJob *job, PkBitfield filters)
 {
-	zypp_set_custom_config_file();
+	// Use custom configuration for libzypp
+	if (!zypp_set_custom_config ()) {
+		pk_backend_job_finished (job);
+		return;
+	}
 
 	ZyppJob zjob(job);
 	ZYpp::Ptr zypp = zjob.get_zypp();
@@ -3979,7 +3973,11 @@ pk_backend_get_repo_list (PkBackend *backend, PkBackendJob *job, PkBitfield filt
 void
 pk_backend_repo_enable (PkBackend *backend, PkBackendJob *job, const gchar *rid, gboolean enabled)
 {
-	zypp_set_custom_config_file();
+	// Use custom configuration for libzypp
+	if (!zypp_set_custom_config ()) {
+		pk_backend_job_finished (job);
+		return;
+	}
 
 	ZyppJob zjob(job);
 	ZYpp::Ptr zypp = zjob.get_zypp();
