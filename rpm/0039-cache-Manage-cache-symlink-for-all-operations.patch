@@ -1,0 +1,87 @@
+From b8e2064b44ea2df7e567b74896298fb03736938f Mon, 25 Mar 2019 16:24:09 +0100
+From: Andrew Branson <andrew.branson@jollamobile.com>
+Date: Mon, 25 Mar 2019 16:23:33 +0100
+Subject: [PATCH] [cache] Manage cache symlink for all operations using zypp. JB#45184
+
+diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
+index bfd57b2..c95e964 100644
+--- a/backends/zypp/pk-backend-zypp.cpp
++++ b/backends/zypp/pk-backend-zypp.cpp
+@@ -298,11 +298,17 @@
+ 	return TRUE;
+ }
+ 
+-static void
+-zypp_set_custom_config_file ()
++static gboolean
++zypp_set_custom_config (bool requires_dist_upgrade=FALSE)
+ {
+ 	// override configuration values to control cache directory
+ 	setenv("ZYPP_CONF", "/etc/zypp/packagekit-zypp-override.conf", 1);
++
++	if (!zypp_set_dist_upgrade_mode (requires_dist_upgrade)) {
++		PK_ZYPP_LOG ("Could not configure cache directory");
++		return false;
++	}
++	return true;
+ }
+ 
+ /*
+@@ -423,26 +429,11 @@
+ 		bool requires_dist_upgrade=FALSE)
+ {
+ 	// Use custom configuration for libzypp
+-	zypp_set_custom_config_file ();
+-
+-	if (requires_dist_upgrade) {
+-		// This transaction requires libzypp to be in dist-upgrade mode
+-		if (!zypp_set_dist_upgrade_mode (TRUE)) {
+-			PK_ZYPP_LOG ("Could not configure dist-upgrade mode");
+-			zypp_backend_finished_error (job,
+-					PK_ERROR_ENUM_NO_DISTRO_UPGRADE_DATA,
+-					"Could not configure dist-upgrade mode.");
+-			return false;
+-		}
+-	} else {
+-		// This transaction requires libzypp to be in non-dist-upgrade mode
+-		if (!zypp_set_dist_upgrade_mode (FALSE)) {
+-			PK_ZYPP_LOG ("Could not configure normal mode");
+-			zypp_backend_finished_error (job,
+-					PK_ERROR_ENUM_NO_DISTRO_UPGRADE_DATA,
+-					"Could not configure normal mode.");
+-			return false;
+-		}
++	if (!zypp_set_custom_config (requires_dist_upgrade)) {
++		zypp_backend_finished_error (job,
++				PK_ERROR_ENUM_NO_DISTRO_UPGRADE_DATA,
++				"Could not configure zypp cache.");
++		return false;
+ 	}
+ 
+ 	ZyppBackendThreadWrapperData *data = new ZyppBackendThreadWrapperData(func,
+@@ -3710,7 +3701,11 @@
+ {
+ 	//MIL << endl;
+ 
+-	zypp_set_custom_config_file();
++	// Use custom configuration for libzypp
++	if (!zypp_set_custom_config ()) {
++		pk_backend_job_finished (job);
++		return;
++	}
+ 
+ 	ZyppJob zjob(job);
+ 	ZYpp::Ptr zypp = zjob.get_zypp();
+@@ -3760,7 +3755,11 @@
+ {
+ 	//MIL << endl;
+ 	
+-	zypp_set_custom_config_file();
++	// Use custom configuration for libzypp
++	if (!zypp_set_custom_config ()) {
++		pk_backend_job_finished (job);
++		return;
++	}
+ 
+ 	ZyppJob zjob(job);
+ 	ZYpp::Ptr zypp = zjob.get_zypp();
