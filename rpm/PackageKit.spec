@@ -49,6 +49,7 @@ Patch34: 0034-make-sure-that-the-custom-config-is-set-for-synchron.patch
 Patch35: 0035-Fixed-implementation-of-finding-newest-package-while.patch
 Patch37: 0037-PK_FILTER_ENUM_ARCH-_NOT_ARCH-to-filter-based-on-com.patch
 Patch38: 0038-Disable-GPG-signature-checking-on-temporary-local-re.patch
+Patch39: 0039-cache-Manage-cache-symlink-for-all-operations.patch
 
 Requires: PackageKit-zypp = %{version}-%{release}
 Requires: shared-mime-info
@@ -166,6 +167,7 @@ using PackageKit.
 %patch35 -p1
 %patch37 -p1
 %patch38 -p1
+%patch39 -p1
 
 
 %build
