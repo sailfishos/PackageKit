@@ -1,0 +1,76 @@
+From 33a36a047bce0f5d5d24b7af5eae374ca63b8005 Mon Sep 17 00:00:00 2001
+From: Martin Kampas <martin.kampas@jolla.com>
+Date: Fri, 14 Jun 2019 07:21:59 +0200
+Subject: [PATCH] [cache] Update the regular cache after dist-upgrade. JB#46130
+
+---
+ backends/zypp/pk-backend-zypp.cpp | 21 +++++++++++++++++++--
+ 1 file changed, 19 insertions(+), 2 deletions(-)
+
+diff --git a/backends/zypp/pk-backend-zypp.cpp b/backends/zypp/pk-backend-zypp.cpp
+index 473f43118..155dc9756 100644
+--- a/backends/zypp/pk-backend-zypp.cpp
++++ b/backends/zypp/pk-backend-zypp.cpp
+@@ -189,6 +189,9 @@ guint _dl_count = 0;
+ guint _dl_progress = 0;
+ guint _dl_status = 0;
+ 
++static const filesystem::Pathname REGULAR_CACHE_PATH("/home/.zypp-cache");
++static const filesystem::Pathname DIST_UPGRADE_CACHE_PATH("/home/.pk-zypp-dist-upgrade-cache");
++
+ // Forward declaration
+ static void
+ zypp_backend_finished_error (PkBackendJob  *job, PkErrorEnum err_code,
+@@ -237,8 +240,9 @@ static gboolean
+ zypp_set_dist_upgrade_mode (gboolean dist_upgrade_mode)
+ {
+ 	const char *target_path = "/var/cache/pk-zypp-cache";
+-	const char *path = dist_upgrade_mode ? "/home/.pk-zypp-dist-upgrade-cache"
+-		: "/home/.zypp-cache";
++	const char *path = dist_upgrade_mode
++		? DIST_UPGRADE_CACHE_PATH.c_str()
++		: REGULAR_CACHE_PATH.c_str();
+ 
+ 	char tmp[PATH_MAX];
+ 	struct stat st;
+@@ -4362,6 +4366,7 @@ backend_upgrade_system_thread (PkBackendJob *job, GVariant *params, gpointer use
+ 	gchar *id = parameters->distro_id;
+ 
+ 	gboolean do_refresh = false;
++	gboolean sync_cache = false;
+ 
+ 	if (strstr(id, "nemo::query-size:") == id) {
+ 		id += strlen("nemo::query-size:");
+@@ -4397,10 +4402,12 @@ backend_upgrade_system_thread (PkBackendJob *job, GVariant *params, gpointer use
+ 		case PK_UPGRADE_KIND_ENUM_COMPLETE:
+ 			//MIL << "Installing upgrades and " << pattern_name << std::endl;
+ 			install_pattern = true;
++			sync_cache = true;
+ 			break;
+ 		case PK_UPGRADE_KIND_ENUM_DEFAULT:
+ 		default:
+ 			//MIL << "Downloading and installing upgrades" << std::endl;
++			sync_cache = true;
+ 			break;
+ 	}
+ 	delete parameters;
+@@ -4465,6 +4472,16 @@ backend_upgrade_system_thread (PkBackendJob *job, GVariant *params, gpointer use
+ 		return;
+ 	}
+ 
++	if (sync_cache) {
++		PK_ZYPP_LOG ("Updating regular zypp cache");
++		// Copy, not move, because it may be called repeatedly!
++		if (filesystem::erase(REGULAR_CACHE_PATH) != 0
++		    || filesystem::mkdir(REGULAR_CACHE_PATH) != 0
++		    || filesystem::copy_dir_content(DIST_UPGRADE_CACHE_PATH, REGULAR_CACHE_PATH) != 0) {
++			PK_ZYPP_LOG ("Failed to update the regular zypp cache");
++		}
++	}
++
+ 	pk_backend_job_finished (job);
+ }
+ 
+-- 
+2.21.0
+
