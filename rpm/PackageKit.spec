@@ -194,6 +194,7 @@ done
         --exec-prefix=/usr \
         --bindir=/usr/bin \
         --sbindir=/usr/sbin \
+        --with-systemdsystemunitdir=/usr/lib/systemd/system \
         --sysconfdir=/etc \
         --datadir=/usr/share \
         --includedir=/usr/include \
@@ -250,6 +251,13 @@ install -D -m 644 %{S:102} %{buildroot}%{_sysconfdir}/zypp/packagekit-zypp-overr
 # NOTE: zypp.conf might also arch override so this assumes that both files agree on the same value.
 echo "arch = %{_target_cpu}" >> %{buildroot}%{_sysconfdir}/zypp/packagekit-zypp-override.conf
 
+# Move under /usr
+if [ -e %{buildroot}/lib ]; then
+  mkdir -p %{buildroot}%{_libdir}/systemd/system/
+  mv %{buildroot}/lib/systemd/system/* %{buildroot}%{_libdir}/systemd/system/
+  rm -rf %{buildroot}/lib
+fi
+
 %find_lang %name
 
 mkdir -p %{buildroot}%{_docdir}/%{name}-%{version}
@@ -295,9 +303,9 @@ update-mime-database %{_datadir}/mime &> /dev/null || :
 %ghost %verify(not md5 size mtime) %{_localstatedir}/lib/PackageKit/transactions.db
 %{_datadir}/dbus-1/system-services/*.service
 %{_datadir}/dbus-1/interfaces/*.xml
-/lib/systemd/system/packagekit-offline-update.service
-/lib/systemd/system/packagekit.service
-/lib/systemd/system/system-update.target.wants/packagekit-offline-update.service
+%{_libdir}/systemd/system/packagekit-offline-update.service
+%{_libdir}/systemd/system/packagekit.service
+%{_libdir}/systemd/system/system-update.target.wants/packagekit-offline-update.service
 %{_libexecdir}/pk-offline-update
 %{_libexecdir}/packagekit-direct
 
@@ -309,7 +317,7 @@ update-mime-database %{_datadir}/mime &> /dev/null || :
 %defattr(-,root,root,-)
 %{_libdir}/packagekit-backend/libpk_backend_zypp.so
 %{_libexecdir}/pk-rpm-db-clean
-%{_unitdir}/rpm-db-clean.service
+%{_libdir}/systemd/system/rpm-db-clean.service
 %config %{_sysconfdir}/zypp/packagekit-zypp-override.conf
 
 %files glib
