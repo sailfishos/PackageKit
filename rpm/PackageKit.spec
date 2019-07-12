@@ -282,7 +282,7 @@ update-mime-database %{_datadir}/mime &> /dev/null || :
 %dir %{_localstatedir}/cache/PackageKit
 %dir %{_localstatedir}/cache/PackageKit/downloads
 %dir %{_libdir}/packagekit-backend
-%config(noreplace) %{_sysconfdir}/PackageKit/*.conf
+%config %{_sysconfdir}/PackageKit/*.conf
 %config %{_sysconfdir}/dbus-1/system.d/*
 %{_datadir}/polkit-1/actions/*.policy
 %{_datadir}/polkit-1/rules.d/org.freedesktop.packagekit.rules
@@ -320,7 +320,7 @@ update-mime-database %{_datadir}/mime &> /dev/null || :
 %defattr(-,root,root,-)
 %{_sysconfdir}/profile.d/*
 %{_libexecdir}/pk-command-not-found
-%config(noreplace) %{_sysconfdir}/PackageKit/CommandNotFound.conf
+%config %{_sysconfdir}/PackageKit/CommandNotFound.conf
 
 %files glib-devel
 %defattr(-,root,root,-)
