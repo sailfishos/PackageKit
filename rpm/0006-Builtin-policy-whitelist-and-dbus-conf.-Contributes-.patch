@@ -1,12 +1,36 @@
-From a27b68265988eb0bc7650346402074acd4060027 Mon Sep 17 00:00:00 2001
+From 4d71e9e7d543eed526058ed3ea0a9f682a00b47b Mon Sep 17 00:00:00 2001
 From: Pekka Vuorela <pekka.vuorela@jollamobile.com>
 Date: Thu, 12 Oct 2017 14:45:09 +0300
-Subject: [PATCH 06/38] Builtin policy and whitelist. Contributes to JB#14776
+Subject: [PATCH 05/38] Builtin policy, whitelist, and dbus conf. Contributes
+ to JB#14776
 
+Require sailfish-system group to access PackageKit via D-Bus. Contributes to JB#47958
+
+Signed-off-by: Raine Makelainen <raine.makelainen@jolla.com>
 ---
- src/pk-transaction.c | 84 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 84 insertions(+)
+ data/org.freedesktop.PackageKit.conf.in |  6 +-
+ src/pk-transaction.c                    | 84 +++++++++++++++++++++++++
+ 2 files changed, 88 insertions(+), 2 deletions(-)
 
+diff --git a/data/org.freedesktop.PackageKit.conf.in b/data/org.freedesktop.PackageKit.conf.in
+index 2864b15e7..538fa64b8 100644
+--- a/data/org.freedesktop.PackageKit.conf.in
++++ b/data/org.freedesktop.PackageKit.conf.in
+@@ -11,10 +11,12 @@
+   <!-- Only user @PACKAGEKIT_USER@ can own the PackageKit service -->
+   <policy user="@PACKAGEKIT_USER@">
+     <allow own="org.freedesktop.PackageKit"/>
++    <allow send_destination="org.freedesktop.PackageKit"/>
++    <allow receive_sender="org.freedesktop.PackageKit"/>
+   </policy>
+ 
+- <!-- Allow anyone to call into the service - we'll reject callers using PolicyKit -->
+-  <policy context="default">
++ <!-- Allow users belonging to sailfish-system to call into the service - we'll reject callers using PolicyKit -->
++  <policy group="sailfish-system">
+     <allow send_destination="org.freedesktop.PackageKit"
+            send_interface="org.freedesktop.PackageKit"/>
+     <allow send_destination="org.freedesktop.PackageKit"
 diff --git a/src/pk-transaction.c b/src/pk-transaction.c
 index 1d006c782..f9cf35167 100644
 --- a/src/pk-transaction.c
@@ -19,10 +43,11 @@ index 1d006c782..f9cf35167 100644
  
  #include <glib/gstdio.h>
  #include <glib/gi18n.h>
-@@ -2392,6 +2393,87 @@ out:
+@@ -2391,6 +2392,87 @@ out:
+ 	g_free (data);
  }
  
- /**
++/**
 + * Built-in policy configuration until we get a newer polkit with JS-based
 + * rules that can handle fine-grained policy decisions based on the sender
 + **/
@@ -103,10 +128,9 @@ index 1d006c782..f9cf35167 100644
 +	return result;
 +}
 +
-+/**
+ /**
   * pk_transaction_authorize_actions:
   *
-  * Param actions is an array of policy actions that shall be authorized. They
 @@ -2625,6 +2707,8 @@ pk_transaction_obtain_authorization (PkTransaction *transaction,
  				 PK_TRANSACTION_FLAG_ENUM_ONLY_DOWNLOAD) ||
  			pk_bitfield_contain (transaction->priv->cached_transaction_flags,
@@ -117,5 +141,5 @@ index 1d006c782..f9cf35167 100644
  		g_debug ("No authentication required");
  		pk_transaction_set_state (transaction, PK_TRANSACTION_STATE_READY);
 -- 
-2.13.6
+2.21.0
 

@@ -17,7 +17,7 @@ Patch1:  0001-Suppress-gtk-doc-building.patch
 Patch2:  0002-Comments-out-c-11-14-checks.patch
 Patch4:  0004-Add-support-for-CPU-keepalive-during-transaction.patch
 Patch5:  0005-Partly-revert-trivial-Remove-some-unused-functions-o.patch
-Patch6:  0006-Builtin-policy-and-whitelist.-Contributes-to-JB-1477.patch
+Patch6:  0006-Builtin-policy-whitelist-and-dbus-conf.-Contributes-.patch
 Patch7:  0007-Add-l10n-handler-for-missing-roles.patch
 Patch8:  0008-Improve-progress-output-on-non-80x25-terminals.patch
 Patch9:  0009-Add-pattern-support.patch
@@ -54,6 +54,7 @@ Patch40: 0040-cache-Update-the-regular-cache-after-dist-upgrade.-J.patch
 
 Requires: PackageKit-zypp = %{version}-%{release}
 Requires: shared-mime-info
+Requires: sailfish-setup
 
 BuildRequires: glib2-devel >= 2.46
 BuildRequires: pam-devel
