@@ -1,11 +1,11 @@
-From a27b68265988eb0bc7650346402074acd4060027 Mon Sep 17 00:00:00 2001
+From 4d71e9e7d543eed526058ed3ea0a9f682a00b47b Mon Sep 17 00:00:00 2001
 From: Pekka Vuorela <pekka.vuorela@jollamobile.com>
 Date: Thu, 12 Oct 2017 14:45:09 +0300
 Subject: [PATCH 06/38] Builtin policy and whitelist. Contributes to JB#14776
 
 ---
- src/pk-transaction.c | 84 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 84 insertions(+)
+  src/pk-transaction.c                    | 84 +++++++++++++++++++++++++
+ 2 files changed, 88 insertions(+), 2 deletions(-)
 
 diff --git a/src/pk-transaction.c b/src/pk-transaction.c
 index 1d006c782..f9cf35167 100644
@@ -19,7 +19,8 @@ index 1d006c782..f9cf35167 100644
  
  #include <glib/gstdio.h>
  #include <glib/gi18n.h>
-@@ -2392,6 +2393,87 @@ out:
+@@ -2391,6 +2392,45 @@ out:
+ 	g_free (data);
  }
  
  /**
@@ -32,27 +33,6 @@ index 1d006c782..f9cf35167 100644
 +	GError *error = NULL;
 +	gboolean result = FALSE;
 +	gchar *path = g_strdup_printf ("/proc/%u", pid);
-+	gchar *exec = g_strdup_printf ("/proc/%u/exe", pid);
-+	const gchar *exec_whitelist[] = {
-+		// For system upgrades (remove this one once new systemd lands)
-+		"/usr/bin/store-client",
-+
-+		// For devel dist upgrading
-+		"/usr/bin/rnd-dist-upgrade",
-+
-+		// For deploying RPMs from the SDK
-+		"/usr/bin/sdk-deploy-rpm",
-+
-+		NULL,
-+	};
-+	const gchar *egid_whitelist[] = {
-+		// Privileged applications
-+		"privileged",
-+
-+		NULL,
-+	};
-+	int i = 0;
-+	gchar *app = NULL;
 +
 +	// Check if a systemd-style system update is in progress
 +	// http://www.freedesktop.org/wiki/Software/systemd/SystemUpdates/
@@ -62,40 +42,19 @@ index 1d006c782..f9cf35167 100644
 +		result = TRUE;
 +	}
 +
-+	// Check application executable path of sender process
-+	app = g_file_read_link (exec, &error);
-+	if (app) {
-+		g_debug ("Executable of sender process: '%s'", app);
-+		for (i=0; exec_whitelist[i]; i++) {
-+			if (g_strcmp0 (app, exec_whitelist[i]) == 0) {
-+				g_debug ("Allowing from exec whitelist");
-+				result = TRUE;
-+				break;
-+			}
-+		}
-+		g_free (app);
-+	} else {
-+		g_warning ("Could not get executable of sender process: %s",
-+				error->message);
-+		g_error_free (error);
-+	}
-+
 +	// Check effective group ID of sender process
 +	struct stat sender_stat;
 +	if (stat(path, &sender_stat) == 0) {
 +		struct group *sender_group = getgrgid (sender_stat.st_gid);
 +		if (sender_group) {
 +			g_debug ("Group of sender process: '%s'", sender_group->gr_name);
-+                        for (i=0; egid_whitelist[i]; i++) {
-+				if (g_strcmp0 (sender_group->gr_name, egid_whitelist[i]) == 0) {
-+					g_debug ("Allowing from egid whitelist");
-+					result = TRUE;
-+				}
++			if (g_strcmp0 (sender_group->gr_name, "privileged") == 0) {
++				g_debug ("Allowing from privileged process");
++				result = TRUE;
 +			}
 +		}
 +	}
 +
-+	g_free (exec);
 +	g_free (path);
 +
 +	g_debug ("%s -> %s", __func__, result ? "true" : "false");
@@ -106,8 +65,7 @@ index 1d006c782..f9cf35167 100644
 +/**
   * pk_transaction_authorize_actions:
   *
-  * Param actions is an array of policy actions that shall be authorized. They
-@@ -2625,6 +2707,8 @@ pk_transaction_obtain_authorization (PkTransaction *transaction,
+@@ -2625,6 +2665,8 @@ pk_transaction_obtain_authorization (PkTransaction *transaction,
  				 PK_TRANSACTION_FLAG_ENUM_ONLY_DOWNLOAD) ||
  			pk_bitfield_contain (transaction->priv->cached_transaction_flags,
  				 PK_TRANSACTION_FLAG_ENUM_SIMULATE) ||
@@ -117,5 +75,5 @@ index 1d006c782..f9cf35167 100644
  		g_debug ("No authentication required");
  		pk_transaction_set_state (transaction, PK_TRANSACTION_STATE_READY);
 -- 
-2.13.6
+2.21.0
 
