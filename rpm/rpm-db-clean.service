@@ -1,0 +1,19 @@
+#
+# Remove RPM database region files and rebuild DB if requested
+#
+# Copyright (C) 2014 Jolla Oy
+# Contact: Juha Kallioinen <juha.kallioinen@jolla.com>
+#
+
+[Unit]
+Description=Clean RPM db region files at each reboot
+DefaultDependencies=no
+After=systemd-remount-fs.service
+Before=sysinit.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/pk-rpm-db-clean
+
+[Install]
+WantedBy=basic.target
