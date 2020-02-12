@@ -1,0 +1,30 @@
+#!/bin/sh
+#
+# Remove RPM database region files and rebuild DB if requested
+#
+# Copyright (C) 2014 Jolla Oy
+# Contact: Juha Kallioinen <juha.kallioinen@jolla.com>
+#
+# There's a chance that RPM database's region files get corrupted in a
+# way that any program that tries to open the database for writing
+# gets stuck. This state is persistent over reboot, but recoverable by
+# calling db_recover or by simply removing the region files.
+#
+# The removed region files are recreated when the first privileged
+# process opens the rpm database for reading or writing.
+#
+# If some system component requested a database rebuild on reboot, we
+# will do that here, as we can be sure that no other process accesses
+# the database at this point.
+#
+
+PK_ZYPP_REBUILDDB_ON_BOOT=/var/lib/PackageKit/scheduled-rebuilddb
+
+rm -f /var/lib/rpm/__db.???
+
+if [ -f $PK_ZYPP_REBUILDDB_ON_BOOT ]; then
+    rm -f $PK_ZYPP_REBUILDDB_ON_BOOT
+    echo "Rebuilding RPM db ($PK_ZYPP_REBUILDDB_ON_BOOT exists)"
+    rpmdb --rebuilddb
+    echo "Rebuilding RPM db finished with exit status $?"
+fi
