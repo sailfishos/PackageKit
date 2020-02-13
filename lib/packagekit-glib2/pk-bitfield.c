@@ -341,6 +341,8 @@ pk_transaction_flag_bitfield_to_string (PkBitfield transaction_flags)
 			continue;
 		g_string_append_printf (string, "%s;", pk_transaction_flag_enum_to_string (i));
 	}
+		if (transaction_flags & pk_bitfield_value (PK_TRANSACTION_FLAG_ENUM_EXT_DOWNLOAD_SIZE))
+			g_string_append_printf (string, "%s;", pk_transaction_flag_enum_to_string (PK_TRANSACTION_FLAG_ENUM_EXT_DOWNLOAD_SIZE));
 	/* do we have a 'none' transaction_flag? \n */
 	if (string->len == 0) {
 		g_warning ("not valid!");

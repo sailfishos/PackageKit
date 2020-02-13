@@ -380,6 +380,7 @@ static const PkEnumMatch enum_transaction_flag[] = {
 	{PK_TRANSACTION_FLAG_ENUM_ALLOW_REINSTALL,	"allow-reinstall"},
 	{PK_TRANSACTION_FLAG_ENUM_JUST_REINSTALL,	"just-reinstall"},
 	{PK_TRANSACTION_FLAG_ENUM_ALLOW_DOWNGRADE,	"allow-downgrade"},
+	{PK_TRANSACTION_FLAG_ENUM_EXT_DOWNLOAD_SIZE,    "download-size"},
 	{0, NULL}
 };
 
