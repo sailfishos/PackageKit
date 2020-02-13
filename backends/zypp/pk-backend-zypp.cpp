@@ -2208,7 +2208,7 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo
 			goto exit;
 		}
 
-		if (pk_bitfield_contain (transaction_flags, PK_TRANSACTION_FLAG_ENUM_SIMULATE)) {
+		if (pk_bitfield_contain (transaction_flags, PK_TRANSACTION_FLAG_ENUM_EXT_DOWNLOAD_SIZE)) {
 			gchar *msg = g_strdup_printf(
 					"DOWNLOAD=%" PRId64 ";"
 					"INSTALL=%" PRId64 ";"
@@ -4251,9 +4251,9 @@ backend_upgrade_system_thread (PkBackendJob *job,
 		return;
 	}
 
-	if (strstr(distro_id, "nemo::query-size:") == distro_id) {
+	if (distro_id && distro_id[0] != '\0' && strstr(distro_id, "nemo::query-size:") == distro_id) {
 		distro_id += strlen("nemo::query-size:");
-		pk_bitfield_add(transaction_flags, PK_TRANSACTION_FLAG_ENUM_SIMULATE);
+		pk_bitfield_add(transaction_flags, PK_TRANSACTION_FLAG_ENUM_EXT_DOWNLOAD_SIZE);
 		LOG << "Getting size of distro upgrade, with pattern = '" << distro_id << "'" << std::endl;
 		do_refresh = TRUE;
 	}
