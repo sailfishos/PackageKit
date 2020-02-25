@@ -10,4 +10,8 @@ Wants=network-online.target
 Type=dbus
 BusName=org.freedesktop.PackageKit
 User=@PACKAGEKIT_USER@
-ExecStart=@libexecdir@/packagekitd
+# To enable verbose logging define following in sysconfig file:
+# PACKAGEKIT_ARGS="--keep-environment --verbose"
+# ZYPP_LOGFILE=-
+EnvironmentFile=-/etc/sysconfig/packagekit
+ExecStart=@libexecdir@/packagekitd $PACKAGEKIT_ARGS
