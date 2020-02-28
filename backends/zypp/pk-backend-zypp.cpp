@@ -192,6 +192,9 @@ guint _dl_count = 0;
 guint _dl_progress = 0;
 guint _dl_status = 0;
 
+static const filesystem::Pathname REGULAR_CACHE_PATH("/home/.zypp-cache");
+static const filesystem::Pathname DIST_UPGRADE_CACHE_PATH("/home/.pk-zypp-dist-upgrade-cache");
+
 // Forward declaration
 static void
 zypp_backend_finished_error (PkBackendJob  *job, PkErrorEnum err_code,
@@ -238,8 +241,9 @@ static gboolean
 zypp_set_dist_upgrade_mode (gboolean dist_upgrade_mode)
 {
 	const char *target_path = "/var/cache/pk-zypp-cache";
-	const char *path = dist_upgrade_mode ? "/home/.pk-zypp-dist-upgrade-cache"
-		: "/var/cache/zypp";
+	const char *path = dist_upgrade_mode
+		? DIST_UPGRADE_CACHE_PATH.c_str()
+		: REGULAR_CACHE_PATH.c_str();
 
 	char tmp[PATH_MAX];
 	struct stat st;
@@ -4237,6 +4241,7 @@ backend_upgrade_system_thread (PkBackendJob *job,
 	const gchar *distro_id = NULL;
 	bool install_pattern = false;
 	bool do_refresh = FALSE;
+	gboolean sync_cache = FALSE;
 
 	ZyppJob zjob (job);
 	set<PoolItem> candidates;
@@ -4284,10 +4289,12 @@ backend_upgrade_system_thread (PkBackendJob *job,
 		case PK_UPGRADE_KIND_ENUM_COMPLETE:
 			MIL << "Installing upgrades and " << pattern_name << std::endl;
 			install_pattern = true;
+			sync_cache = TRUE;
 			break;
 		case PK_UPGRADE_KIND_ENUM_DEFAULT:
 		default:
 			MIL << "Downloading and installing upgrades" << std::endl;
+			sync_cache = TRUE;
 			break;
 	}
 
@@ -4342,6 +4349,16 @@ backend_upgrade_system_thread (PkBackendJob *job,
 				PK_ERROR_ENUM_TRANSACTION_CANCELLED,
 				"%s", ex.what());
 		pk_backend_job_finished (job);
+	}
+
+	if (sync_cache) {
+		LOG  << "Updating regular zypp cache" << std::endl;
+		// Copy, not move, because it may be called repeatedly!
+		if (filesystem::erase(REGULAR_CACHE_PATH) != 0
+		    || filesystem::mkdir(REGULAR_CACHE_PATH) != 0
+		    || filesystem::copy_dir_content(DIST_UPGRADE_CACHE_PATH, REGULAR_CACHE_PATH) != 0) {
+			LOG << "Failed to update the regular zypp cache" << std::endl;
+		}
 	}
 
 	zypp->resolver ()->setUpgradeMode (FALSE);
