@@ -2041,7 +2041,8 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo
 		}
 
 		ResPool pool = ResPool::instance ();
-		if (type != UPGRADE_SYSTEM && pk_bitfield_contain (transaction_flags, PK_TRANSACTION_FLAG_ENUM_SIMULATE)) {
+		if (pk_bitfield_contain (transaction_flags, PK_TRANSACTION_FLAG_ENUM_SIMULATE) &&
+		    !pk_bitfield_contain (transaction_flags, PK_TRANSACTION_FLAG_ENUM_EXT_DOWNLOAD_SIZE)) {
 			ret = TRUE;
 
 			MIL << "simulating" << std::endl;
