@@ -4242,17 +4242,17 @@ backend_upgrade_system_thread (PkBackendJob *job,
 	 **/
 	switch (upgrade_kind) {
 		case PK_UPGRADE_KIND_ENUM_MINIMAL:
-			MIL << "Downloading upgrades (no installation)" << std::endl;
-			pk_bitfield_add(transaction_flags,
-					PK_TRANSACTION_FLAG_ENUM_ONLY_DOWNLOAD);
-			// Also try downloading dependencies of the pattern
-			install_pattern = true;
-			do_refresh = TRUE;
-			break;
+			pk_bitfield_add(transaction_flags, PK_TRANSACTION_FLAG_ENUM_ONLY_DOWNLOAD);
+			// fall through
 		case PK_UPGRADE_KIND_ENUM_COMPLETE:
-			MIL << "Installing upgrades and " << pattern_name << std::endl;
+			if (pk_bitfield_contain (transaction_flags, PK_TRANSACTION_FLAG_ENUM_ONLY_DOWNLOAD)) {
+				MIL << "Downloading upgrades (no installation)" << std::endl;
+				do_refresh = TRUE;
+			} else {
+				MIL << "Installing upgrades and " << pattern_name << std::endl;
+				sync_cache = TRUE;
+			}
 			install_pattern = true;
-			sync_cache = TRUE;
 			break;
 		case PK_UPGRADE_KIND_ENUM_DEFAULT:
 		default:
