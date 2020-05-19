@@ -4219,8 +4219,10 @@ backend_upgrade_system_thread (PkBackendJob *job,
 		return;
 	}
 
-	if (distro_id && distro_id[0] != '\0' && strstr(distro_id, "nemo::query-size:") == distro_id) {
-		distro_id += strlen("nemo::query-size:");
+	if (distro_id && distro_id[0] != '\0' &&
+	    (strstr(distro_id, "nemo::query-size:") == distro_id ||
+	     strstr(distro_id, "ext::query-sizes:") == distro_id)) {
+		distro_id += 17;
 		pk_bitfield_add(transaction_flags, PK_TRANSACTION_FLAG_ENUM_EXT_DOWNLOAD_SIZE);
 		LOG << "Getting size of distro upgrade, with pattern = '" << distro_id << "'" << std::endl;
 		do_refresh = TRUE;
