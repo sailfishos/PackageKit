@@ -1966,6 +1966,21 @@ zypp_backend_pool_item_notify (PkBackendJob  *job,
 	return true;
 }
 
+static void
+zypp_send_size_details (PkBackendJob *job, const char *name, int64_t bytes)
+{
+	LOG << "Reporting upgrade size, " << (name + 2) << " = " << bytes << " bytes" << std::endl;
+
+	pk_backend_job_details (job,
+	                        name,                   // package_id, used for custom size name
+	                        "",                     // package summary
+	                        "",                     // license
+	                        PK_GROUP_ENUM_UNKNOWN,  // PkGroupEnum
+	                        "",                     // description
+	                        "",                     // url
+	                        bytes);
+}
+
 /**
   * simulate, or perform changes in pool to the system
   */
@@ -2203,24 +2218,18 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo
 			goto exit;
 		}
 
-		if (pk_bitfield_contain (transaction_flags, PK_TRANSACTION_FLAG_ENUM_EXT_DOWNLOAD_SIZE)) {
-			gchar *msg = g_strdup_printf(
-					"DOWNLOAD=%" PRId64 ";"
-					"INSTALL=%" PRId64 ";"
-					"REMOVE=%" PRId64 ";"
-					"CACHED=%" PRId64,
-					total_download_bytes,
-					total_install_bytes,
-					total_remove_bytes,
-					total_cached_bytes);
-			LOG << "Reporting upgrade size: '" << msg << "'" << std::endl;
-			pk_backend_job_error_code (job, PK_ERROR_ENUM_NO_DISTRO_UPGRADE_DATA, "%s\n", msg);
-			g_free(msg);
+		if (pk_bitfield_contain (transaction_flags, PK_TRANSACTION_FLAG_ENUM_SIMULATE) &&
+		    pk_bitfield_contain (transaction_flags, PK_TRANSACTION_FLAG_ENUM_EXT_DOWNLOAD_SIZE)) {
 
-			LOG << "Simulate requested, resetting status" << std::endl;
+			LOG << "Simulate requested, sending notifications and resetting status" << std::endl;
 			for (ResPool::const_iterator it = pool.begin (); it != pool.end (); ++it) {
 				it->statusReset ();
 			}
+
+			zypp_send_size_details (job, "::DOWNLOAD", total_download_bytes);
+			zypp_send_size_details (job, "::INSTALL", total_install_bytes);
+			zypp_send_size_details (job, "::REMOVE", total_remove_bytes);
+			zypp_send_size_details (job, "::CACHED", total_cached_bytes);
 
 			goto exit;
 		}
@@ -4259,6 +4268,7 @@ backend_upgrade_system_thread (PkBackendJob *job,
 	    (strstr(distro_id, "nemo::query-size:") == distro_id ||
 	     strstr(distro_id, "ext::query-sizes:") == distro_id)) {
 		distro_id += 17;
+		pk_bitfield_add(transaction_flags, PK_TRANSACTION_FLAG_ENUM_SIMULATE);
 		pk_bitfield_add(transaction_flags, PK_TRANSACTION_FLAG_ENUM_EXT_DOWNLOAD_SIZE);
 		LOG << "Getting size of distro upgrade, with pattern = '" << distro_id << "'" << std::endl;
 		do_refresh = TRUE;
