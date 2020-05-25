@@ -4261,7 +4261,14 @@ backend_upgrade_system_thread (PkBackendJob *job,
 				MIL << "Downloading upgrades (no installation)" << std::endl;
 				do_refresh = TRUE;
 			} else {
-				MIL << "Installing upgrades and " << pattern_name << std::endl;
+				if (pk_bitfield_contain (transaction_flags, PK_TRANSACTION_FLAG_ENUM_SIMULATE)) {
+					// For simulation runs make sure we have up-to-date cache.
+					// For actual run we don't need to explicitly update the cache anymore.
+					do_refresh = TRUE;
+					MIL << "Simulating installing upgrades and " << pattern_name << std::endl;
+				} else {
+					MIL << "Installing upgrades and " << pattern_name << std::endl;
+				}
 				sync_cache = TRUE;
 			}
 			install_pattern = true;
