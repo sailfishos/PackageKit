@@ -106,17 +106,17 @@ for aclocal_file in $(find . -type f -a -name aclocal.m4); do
 done
 
 ./autogen.sh \
-        --program-prefix= --prefix=/usr \
-        --exec-prefix=/usr \
-        --bindir=/usr/bin \
-        --sbindir=/usr/sbin \
-        --sysconfdir=/etc \
-        --datadir=/usr/share \
-        --includedir=/usr/include \
-        --libdir=/usr/lib \
-        --libexecdir=/usr/libexec \
-        --localstatedir=/var \
-        --sharedstatedir=/var/lib \
+        --program-prefix= --prefix=%{_prefix} \
+        --exec-prefix=%{_exec_prefix} \
+        --bindir=%{_bindir} \
+        --sbindir=%{_sbindir} \
+        --sysconfdir=%{_sysconfdir} \
+        --datadir=%{_datadir} \
+        --includedir=%{_includedir} \
+        --libdir=%{_libdir} \
+        --libexecdir=%{_libexecdir} \
+        --localstatedir=%{_localstatedir} \
+        --sharedstatedir=%{_sharedstatedir} \
         --disable-static \
         --disable-dummy \
         --disable-cron \
