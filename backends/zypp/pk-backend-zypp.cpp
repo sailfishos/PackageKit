@@ -336,7 +336,7 @@ zypp_satisfied_pattern(const sat::Solvable &solv)
  * gchar * should be freed with g_free ().
  */
 static gchar *
-zypp_build_package_id_from_resolvable (const sat::Solvable &resolvable)
+zypp_build_package_id_from_resolvable (const sat::Solvable &resolvable, bool ext_data_repo = false)
 {
 	gchar *package_id;
 	const char *arch;
@@ -346,13 +346,13 @@ zypp_build_package_id_from_resolvable (const sat::Solvable &resolvable)
 	if (isKind<Pattern>(resolvable)) {
 		name = "pattern:" + resolvable.name ();
 		arch = "noarch";
-		if (zypp_satisfied_pattern(resolvable))
+		if (zypp_satisfied_pattern(resolvable) && !ext_data_repo)
 			repo = "installed";
 	} else if (isKind<SrcPackage>(resolvable)) {
 		arch = "source";
 	} else {
 		arch = resolvable.arch ().asString ().c_str ();
-		if (resolvable.isSystem())
+		if (resolvable.isSystem() && !ext_data_repo)
 			repo = "installed";
 	}
 
@@ -1679,9 +1679,10 @@ zypp_filter_solvable (PkBitfield filters, const sat::Solvable &item)
 static void
 zypp_backend_package (PkBackendJob *job, PkInfoEnum info,
 		      const sat::Solvable &pkg,
-		      const char *opt_summary)
+		      const char *opt_summary,
+		      bool ext_data_repo = false)
 {
-	gchar *id = zypp_build_package_id_from_resolvable (pkg);
+	gchar *id = zypp_build_package_id_from_resolvable (pkg, ext_data_repo);
 	pk_backend_job_package (job, info, id, opt_summary);
 	g_free (id);
 }
@@ -1692,11 +1693,57 @@ zypp_backend_package (PkBackendJob *job, PkInfoEnum info,
  * PK doesn't handle re-installs (by some quirk).
  */
 void
-zypp_emit_filtered_packages_in_list (PkBackendJob *job, PkBitfield filters, const vector<sat::Solvable> &v)
+zypp_emit_filtered_packages_in_list (PkBackendJob *job, PkBitfield filters, const vector<sat::Solvable> &v, bool ext_data_repo = false)
 {
 	typedef vector<sat::Solvable>::const_iterator sat_it_t;
 
 	vector<sat::Solvable> installed;
+
+	if (ext_data_repo) {
+		vector<sat::Solvable> available;
+
+		// This is not too pretty, but the logic is:
+		// 1) Go through all resolved packages (contains both @System (installed) and available packages,
+		//    which may be identical. This means there can be duplicate packages sans repo,
+		//    for example "package;1;armv7hl;@System" and "package;1;armv7hl;repo-name")
+		//    Sort these packages to 'installed' and 'available' vectors.
+		// 2) Iterate 'available' packages, and check if there is duplicate package in installed vector,
+		//    if so, drop the package from installed vector and emit available package.
+		// 3) Iterate what is left in 'installed' vector and emit these as well.
+		//
+		// In practice if there is available package with identical version etc with installed package,
+		// emit available package. Otherwise always emit installed package.
+
+		for (sat_it_t it = v.begin (); it != v.end (); ++it) {
+			if (it->isSystem())
+				installed.push_back (*it);
+			else
+				available.push_back (*it);
+		}
+
+		for (sat_it_t it = available.begin (); it != available.end (); ++it) {
+			bool match = false;
+
+			for (sat_it_t i = installed.begin (); !match && i != installed.end (); i++) {
+				match = it->sameNVRA (*i) &&
+					!(!isKind<SrcPackage>(*it) ^
+					  !isKind<SrcPackage>(*i));
+			}
+
+			if (match) {
+				zypp_backend_package (job, PK_INFO_ENUM_INSTALLED, *it,
+						      make<ResObject>(*it)->summary().c_str(), true);
+				installed.erase (find (installed.begin (), installed.end(), *it));
+			}
+		}
+
+		for (sat_it_t it = installed.begin (); it != installed.end (); it++) {
+			zypp_backend_package (job, PK_INFO_ENUM_INSTALLED, *it,
+					      make<ResObject>(*it)->summary().c_str(), true);
+		}
+
+		return;
+	}
 
 	// always emit system installed packages first
 	for (sat_it_t it = v.begin (); it != v.end (); ++it) {
@@ -3652,6 +3699,8 @@ backend_resolve_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
 {
 	gchar **search;
 	PkBitfield _filters;
+	uint start = 0;
+	bool ext_data_repo = false;
 	
 	g_variant_get(params, "(t^a&s)",
 		      &_filters,
@@ -3668,7 +3717,12 @@ backend_resolve_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
 
 	zypp_build_pool (zypp, TRUE);
 
-	for (uint i = 0; search[i]; i++) {
+	if (search[0] && g_strcmp0 (search[0], "ext::data:repo") == 0) {
+		start = 1;
+		ext_data_repo = true;
+	}
+
+	for (uint i = start; search[i]; i++) {
 		MIL << search[i] << " " << pk_filter_bitfield_to_string(_filters) << std::endl;
 		vector<sat::Solvable> v;
 		
@@ -3739,7 +3793,7 @@ backend_resolve_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
 			}
 		}
 
-		zypp_emit_filtered_packages_in_list (job, _filters, pkgs);
+		zypp_emit_filtered_packages_in_list (job, _filters, pkgs, ext_data_repo);
 	}
 }
 
