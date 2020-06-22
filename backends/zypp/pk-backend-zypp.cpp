@@ -2717,7 +2717,9 @@ backend_depends_on_thread (PkBackendJob *job, GVariant *params, gpointer user_da
 		return;
 	}
 	
-	MIL << package_ids[0] << " " << pk_filter_bitfield_to_string (_filters) << std::endl;
+	gchar *tmp = pk_filter_bitfield_to_string (_filters);
+	MIL << package_ids[0] << " " << tmp << std::endl;
+	g_free (tmp);
 
 	try
 	{
@@ -3140,7 +3142,10 @@ backend_get_updates_thread (PkBackendJob *job, GVariant *params, gpointer user_d
 	g_variant_get (params, "(t)",
 		       &_filters);
 
-	MIL << pk_filter_bitfield_to_string(_filters) << std::endl;
+	gchar *tmp = pk_filter_bitfield_to_string (_filters);
+	MIL << tmp << std::endl;
+	g_free (tmp);
+
 	ZyppJob zjob(job);
 	ZYpp::Ptr zypp = zjob.get_zypp();
 
@@ -3730,7 +3735,10 @@ backend_resolve_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
 	}
 
 	for (uint i = start; search[i]; i++) {
-		MIL << search[i] << " " << pk_filter_bitfield_to_string(_filters) << std::endl;
+		gchar *tmp = pk_filter_bitfield_to_string (_filters);
+		MIL << search[i] << " " << tmp << std::endl;
+		g_free (tmp);
+
 		vector<sat::Solvable> v;
 		
 		/* build a list of packages with this name */
@@ -4156,7 +4164,9 @@ backend_get_packages_thread (PkBackendJob *job, GVariant *params, gpointer user_
 	g_variant_get (params, "(t)",
 		       &_filters);
 
-	MIL << pk_filter_bitfield_to_string(_filters) << std::endl;
+	gchar *tmp = pk_filter_bitfield_to_string (_filters);
+	MIL << tmp << std::endl;
+	g_free (tmp);
 
 	ZyppJob zjob(job);
 	ZYpp::Ptr zypp = zjob.get_zypp();
