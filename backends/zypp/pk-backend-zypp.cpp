@@ -336,7 +336,7 @@ zypp_satisfied_pattern(const sat::Solvable &solv)
  * gchar * should be freed with g_free ().
  */
 static gchar *
-zypp_build_package_id_from_resolvable (const sat::Solvable &resolvable)
+zypp_build_package_id_from_resolvable (const sat::Solvable &resolvable, bool ext_data_repo = false)
 {
 	gchar *package_id;
 	const char *arch;
@@ -346,13 +346,13 @@ zypp_build_package_id_from_resolvable (const sat::Solvable &resolvable)
 	if (isKind<Pattern>(resolvable)) {
 		name = "pattern:" + resolvable.name ();
 		arch = "noarch";
-		if (zypp_satisfied_pattern(resolvable))
+		if (zypp_satisfied_pattern(resolvable) && !ext_data_repo)
 			repo = "installed";
 	} else if (isKind<SrcPackage>(resolvable)) {
 		arch = "source";
 	} else {
 		arch = resolvable.arch ().asString ().c_str ();
-		if (resolvable.isSystem())
+		if (resolvable.isSystem() && !ext_data_repo)
 			repo = "installed";
 	}
 
@@ -1679,9 +1679,10 @@ zypp_filter_solvable (PkBitfield filters, const sat::Solvable &item)
 static void
 zypp_backend_package (PkBackendJob *job, PkInfoEnum info,
 		      const sat::Solvable &pkg,
-		      const char *opt_summary)
+		      const char *opt_summary,
+		      bool ext_data_repo = false)
 {
-	gchar *id = zypp_build_package_id_from_resolvable (pkg);
+	gchar *id = zypp_build_package_id_from_resolvable (pkg, ext_data_repo);
 	pk_backend_job_package (job, info, id, opt_summary);
 	g_free (id);
 }
@@ -1692,11 +1693,57 @@ zypp_backend_package (PkBackendJob *job, PkInfoEnum info,
  * PK doesn't handle re-installs (by some quirk).
  */
 void
-zypp_emit_filtered_packages_in_list (PkBackendJob *job, PkBitfield filters, const vector<sat::Solvable> &v)
+zypp_emit_filtered_packages_in_list (PkBackendJob *job, PkBitfield filters, const vector<sat::Solvable> &v, bool ext_data_repo = false)
 {
 	typedef vector<sat::Solvable>::const_iterator sat_it_t;
 
 	vector<sat::Solvable> installed;
+
+	if (ext_data_repo) {
+		vector<sat::Solvable> available;
+
+		// This is not too pretty, but the logic is:
+		// 1) Go through all resolved packages (contains both @System (installed) and available packages,
+		//    which may be identical. This means there can be duplicate packages sans repo,
+		//    for example "package;1;armv7hl;@System" and "package;1;armv7hl;repo-name")
+		//    Sort these packages to 'installed' and 'available' vectors.
+		// 2) Iterate 'available' packages, and check if there is duplicate package in installed vector,
+		//    if so, drop the package from installed vector and emit available package.
+		// 3) Iterate what is left in 'installed' vector and emit these as well.
+		//
+		// In practice if there is available package with identical version etc with installed package,
+		// emit available package. Otherwise always emit installed package.
+
+		for (sat_it_t it = v.begin (); it != v.end (); ++it) {
+			if (it->isSystem())
+				installed.push_back (*it);
+			else
+				available.push_back (*it);
+		}
+
+		for (sat_it_t it = available.begin (); it != available.end (); ++it) {
+			bool match = false;
+
+			for (sat_it_t i = installed.begin (); !match && i != installed.end (); i++) {
+				match = it->sameNVRA (*i) &&
+					!(!isKind<SrcPackage>(*it) ^
+					  !isKind<SrcPackage>(*i));
+			}
+
+			if (match) {
+				zypp_backend_package (job, PK_INFO_ENUM_INSTALLED, *it,
+						      make<ResObject>(*it)->summary().c_str(), true);
+				installed.erase (find (installed.begin (), installed.end(), *it));
+			}
+		}
+
+		for (sat_it_t it = installed.begin (); it != installed.end (); it++) {
+			zypp_backend_package (job, PK_INFO_ENUM_INSTALLED, *it,
+					      make<ResObject>(*it)->summary().c_str(), true);
+		}
+
+		return;
+	}
 
 	// always emit system installed packages first
 	for (sat_it_t it = v.begin (); it != v.end (); ++it) {
@@ -1965,6 +2012,21 @@ zypp_backend_pool_item_notify (PkBackendJob  *job,
 	return true;
 }
 
+static void
+zypp_send_size_details (PkBackendJob *job, const char *name, int64_t bytes)
+{
+	LOG << "Reporting upgrade size, " << (name + 2) << " = " << bytes << " bytes" << std::endl;
+
+	pk_backend_job_details (job,
+	                        name,                   // package_id, used for custom size name
+	                        "",                     // package summary
+	                        "",                     // license
+	                        PK_GROUP_ENUM_UNKNOWN,  // PkGroupEnum
+	                        "",                     // description
+	                        "",                     // url
+	                        bytes);
+}
+
 /**
   * simulate, or perform changes in pool to the system
   */
@@ -2040,7 +2102,8 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo
 		}
 
 		ResPool pool = ResPool::instance ();
-		if (type != UPGRADE_SYSTEM && pk_bitfield_contain (transaction_flags, PK_TRANSACTION_FLAG_ENUM_SIMULATE)) {
+		if (pk_bitfield_contain (transaction_flags, PK_TRANSACTION_FLAG_ENUM_SIMULATE) &&
+		    !pk_bitfield_contain (transaction_flags, PK_TRANSACTION_FLAG_ENUM_EXT_DOWNLOAD_SIZE)) {
 			ret = TRUE;
 
 			MIL << "simulating" << std::endl;
@@ -2201,24 +2264,18 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo
 			goto exit;
 		}
 
-		if (pk_bitfield_contain (transaction_flags, PK_TRANSACTION_FLAG_ENUM_EXT_DOWNLOAD_SIZE)) {
-			gchar *msg = g_strdup_printf(
-					"DOWNLOAD=%" PRId64 ";"
-					"INSTALL=%" PRId64 ";"
-					"REMOVE=%" PRId64 ";"
-					"CACHED=%" PRId64,
-					total_download_bytes,
-					total_install_bytes,
-					total_remove_bytes,
-					total_cached_bytes);
-			LOG << "Reporting upgrade size: '" << msg << "'" << std::endl;
-			pk_backend_job_error_code (job, PK_ERROR_ENUM_NO_DISTRO_UPGRADE_DATA, "%s\n", msg);
-			g_free(msg);
+		if (pk_bitfield_contain (transaction_flags, PK_TRANSACTION_FLAG_ENUM_SIMULATE) &&
+		    pk_bitfield_contain (transaction_flags, PK_TRANSACTION_FLAG_ENUM_EXT_DOWNLOAD_SIZE)) {
 
-			LOG << "Simulate requested, resetting status" << std::endl;
+			LOG << "Simulate requested, sending notifications and resetting status" << std::endl;
 			for (ResPool::const_iterator it = pool.begin (); it != pool.end (); ++it) {
 				it->statusReset ();
 			}
+
+			zypp_send_size_details (job, "::DOWNLOAD", total_download_bytes);
+			zypp_send_size_details (job, "::INSTALL", total_install_bytes);
+			zypp_send_size_details (job, "::REMOVE", total_remove_bytes);
+			zypp_send_size_details (job, "::CACHED", total_cached_bytes);
 
 			goto exit;
 		}
@@ -2654,7 +2711,9 @@ backend_depends_on_thread (PkBackendJob *job, GVariant *params, gpointer user_da
 		return;
 	}
 	
-	MIL << package_ids[0] << " " << pk_filter_bitfield_to_string (_filters) << std::endl;
+	gchar *tmp = pk_filter_bitfield_to_string (_filters);
+	MIL << package_ids[0] << " " << tmp << std::endl;
+	g_free (tmp);
 
 	try
 	{
@@ -3075,7 +3134,10 @@ backend_get_updates_thread (PkBackendJob *job, GVariant *params, gpointer user_d
 	g_variant_get (params, "(t)",
 		       &_filters);
 
-	MIL << pk_filter_bitfield_to_string(_filters) << std::endl;
+	gchar *tmp = pk_filter_bitfield_to_string (_filters);
+	MIL << tmp << std::endl;
+	g_free (tmp);
+
 	ZyppJob zjob(job);
 	ZYpp::Ptr zypp = zjob.get_zypp();
 
@@ -3642,6 +3704,8 @@ backend_resolve_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
 {
 	gchar **search;
 	PkBitfield _filters;
+	uint start = 0;
+	bool ext_data_repo = false;
 	
 	g_variant_get(params, "(t^a&s)",
 		      &_filters,
@@ -3658,8 +3722,16 @@ backend_resolve_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
 
 	zypp_build_pool (zypp, TRUE);
 
-	for (uint i = 0; search[i]; i++) {
-		MIL << search[i] << " " << pk_filter_bitfield_to_string(_filters) << std::endl;
+	if (search[0] && g_strcmp0 (search[0], "ext::data:repo") == 0) {
+		start = 1;
+		ext_data_repo = true;
+	}
+
+	for (uint i = start; search[i]; i++) {
+		gchar *tmp = pk_filter_bitfield_to_string (_filters);
+		MIL << search[i] << " " << tmp << std::endl;
+		g_free (tmp);
+
 		vector<sat::Solvable> v;
 		
 		/* build a list of packages with this name */
@@ -3729,7 +3801,7 @@ backend_resolve_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
 			}
 		}
 
-		zypp_emit_filtered_packages_in_list (job, _filters, pkgs);
+		zypp_emit_filtered_packages_in_list (job, _filters, pkgs, ext_data_repo);
 	}
 }
 
@@ -4077,7 +4149,9 @@ backend_get_packages_thread (PkBackendJob *job, GVariant *params, gpointer user_
 	g_variant_get (params, "(t)",
 		       &_filters);
 
-	MIL << pk_filter_bitfield_to_string(_filters) << std::endl;
+	gchar *tmp = pk_filter_bitfield_to_string (_filters);
+	MIL << tmp << std::endl;
+	g_free (tmp);
 
 	ZyppJob zjob(job);
 	ZYpp::Ptr zypp = zjob.get_zypp();
@@ -4218,8 +4292,11 @@ backend_upgrade_system_thread (PkBackendJob *job,
 		return;
 	}
 
-	if (distro_id && distro_id[0] != '\0' && strstr(distro_id, "nemo::query-size:") == distro_id) {
-		distro_id += strlen("nemo::query-size:");
+	if (distro_id && distro_id[0] != '\0' &&
+	    (strstr(distro_id, "nemo::query-size:") == distro_id ||
+	     strstr(distro_id, "ext::query-sizes:") == distro_id)) {
+		distro_id += 17;
+		pk_bitfield_add(transaction_flags, PK_TRANSACTION_FLAG_ENUM_SIMULATE);
 		pk_bitfield_add(transaction_flags, PK_TRANSACTION_FLAG_ENUM_EXT_DOWNLOAD_SIZE);
 		LOG << "Getting size of distro upgrade, with pattern = '" << distro_id << "'" << std::endl;
 		do_refresh = TRUE;
@@ -4241,17 +4318,24 @@ backend_upgrade_system_thread (PkBackendJob *job,
 	 **/
 	switch (upgrade_kind) {
 		case PK_UPGRADE_KIND_ENUM_MINIMAL:
-			MIL << "Downloading upgrades (no installation)" << std::endl;
-			pk_bitfield_add(transaction_flags,
-					PK_TRANSACTION_FLAG_ENUM_ONLY_DOWNLOAD);
-			// Also try downloading dependencies of the pattern
-			install_pattern = true;
-			do_refresh = TRUE;
-			break;
+			pk_bitfield_add(transaction_flags, PK_TRANSACTION_FLAG_ENUM_ONLY_DOWNLOAD);
+			// fall through
 		case PK_UPGRADE_KIND_ENUM_COMPLETE:
-			MIL << "Installing upgrades and " << pattern_name << std::endl;
+			if (pk_bitfield_contain (transaction_flags, PK_TRANSACTION_FLAG_ENUM_ONLY_DOWNLOAD)) {
+				MIL << "Downloading upgrades (no installation)" << std::endl;
+				do_refresh = TRUE;
+			} else {
+				if (pk_bitfield_contain (transaction_flags, PK_TRANSACTION_FLAG_ENUM_SIMULATE)) {
+					// For simulation runs make sure we have up-to-date cache.
+					// For actual run we don't need to explicitly update the cache anymore.
+					do_refresh = TRUE;
+					MIL << "Simulating installing upgrades and " << pattern_name << std::endl;
+				} else {
+					MIL << "Installing upgrades and " << pattern_name << std::endl;
+				}
+				sync_cache = TRUE;
+			}
 			install_pattern = true;
-			sync_cache = TRUE;
 			break;
 		case PK_UPGRADE_KIND_ENUM_DEFAULT:
 		default:
