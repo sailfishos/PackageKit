@@ -476,7 +476,7 @@ gboolean
 pk_transaction_db_set_data (PkTransactionDb *tdb, const gchar *tid, const gchar *data)
 {
 	return pk_transaction_db_set_strings2 (tdb,
-					       "UPDATE transaction SET data=?1 WHERE transaction_id=?2",
+					       "UPDATE transactions SET data=?1 WHERE transaction_id=?2",
 					       data,
 					       tid);
 }
