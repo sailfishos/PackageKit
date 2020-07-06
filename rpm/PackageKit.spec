@@ -118,6 +118,7 @@ done
         --libexecdir=%{_libexecdir} \
         --localstatedir=%{_localstatedir} \
         --sharedstatedir=%{_sharedstatedir} \
+        --with-systemdsystemunitdir=%{_unitdir} \
         --disable-static \
         --disable-dummy \
         --disable-cron \
@@ -207,9 +208,9 @@ update-mime-database %{_datadir}/mime &> /dev/null || :
 %ghost %verify(not md5 size mtime) %{_localstatedir}/lib/PackageKit/transactions.db
 %{_datadir}/dbus-1/system-services/*.service
 %{_datadir}/dbus-1/interfaces/*.xml
-/lib/systemd/system/packagekit-offline-update.service
-/lib/systemd/system/packagekit.service
-/lib/systemd/system/system-update.target.wants/packagekit-offline-update.service
+%{_unitdir}/packagekit-offline-update.service
+%{_unitdir}/packagekit.service
+%{_unitdir}/system-update.target.wants/packagekit-offline-update.service
 %{_libexecdir}/pk-offline-update
 %{_libexecdir}/packagekit-direct
 
