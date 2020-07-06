@@ -32,6 +32,7 @@ BuildRequires: pkgconfig(systemd)
 BuildRequires: pkgconfig(mce)
 BuildRequires: gobject-introspection-devel
 BuildRequires: vala-devel
+BuildRequires: autoconf-archive
 
 Obsoletes: PackageKit-python
 Obsoletes: PackageKit-debug-install
