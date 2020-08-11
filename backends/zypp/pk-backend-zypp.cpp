@@ -232,9 +232,10 @@ zypp_reset_pool () // may throw a ZYppFactoryException
 	// reset the state of the resolver
 	if (zypp) {
 		zypp->pool().resolver().reset();
-		// the upgrade mode is not reset when resetting the solver and must be
-		// reset explicitly
+		// the upgrade and update modes are not reset when resetting the solver
+		// and must be reset explicitly
 		zypp->pool().resolver().setUpgradeMode(FALSE);
+		zypp->pool().resolver().setUpdateMode(FALSE);
 	}
 }
 
