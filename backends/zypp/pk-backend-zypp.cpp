@@ -4333,8 +4333,8 @@ backend_upgrade_system_thread (PkBackendJob *job,
 					MIL << "Simulating installing upgrades and " << pattern_name << std::endl;
 				} else {
 					MIL << "Installing upgrades and " << pattern_name << std::endl;
+					sync_cache = TRUE;
 				}
-				sync_cache = TRUE;
 			}
 			install_pattern = true;
 			break;
