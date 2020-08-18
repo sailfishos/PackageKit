@@ -5,7 +5,7 @@ Summary:   Package management service
 Name:      PackageKit
 Version:   1.1.13
 Release:   1
-License:   GPLv2+ and LGPLv2.1+
+License:   GPLv2+ and LGPLv2+
 URL:       https://www.freedesktop.org/software/PackageKit/
 Source0:   http://www.freedesktop.org/software/PackageKit/releases/%{name}-%{version}.tar.xz
 Source100: rpm-db-clean.service
