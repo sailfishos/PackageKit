@@ -173,6 +173,7 @@ struct _PkClientState
 	guint				 refcount;
 	PkClientHelper			*client_helper;
 	gboolean			 waiting_for_finished;
+	gchar				*key_file;
 };
 
 G_DEFINE_TYPE (PkClientState, pk_client_state, G_TYPE_OBJECT)
@@ -1998,6 +1999,15 @@ pk_client_set_hints_cb (GObject *source_object,
 		g_dbus_proxy_call (state->proxy, "RepairSystem",
 				   g_variant_new ("(t)",
 						  state->transaction_flags),
+				   G_DBUS_CALL_FLAGS_NONE,
+				   PK_CLIENT_DBUS_METHOD_TIMEOUT,
+				   state->cancellable,
+				   pk_client_method_cb,
+				   state);
+	} else if (state->role == PK_ROLE_ENUM_IMPORT_PUBKEY) {
+		g_dbus_proxy_call (state->proxy, "ImportPubkey",
+				   g_variant_new ("(s)",
+						  state->key_file),
 				   G_DBUS_CALL_FLAGS_NONE,
 				   PK_CLIENT_DBUS_METHOD_TIMEOUT,
 				   state->cancellable,
