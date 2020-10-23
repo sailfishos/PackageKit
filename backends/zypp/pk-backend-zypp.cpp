@@ -3670,7 +3670,7 @@ backend_remove_packages_thread (PkBackendJob *job, GVariant *params, gpointer us
 
 	try
 	{
-		if (!zypp_perform_execution (job, zypp, REMOVE, TRUE, transaction_flags)) {
+		if (!zypp_perform_execution (job, zypp, REMOVE, allow_deps, transaction_flags)) {
 			//reset the status of the marked packages
 			for (vector<PoolItem>::iterator it = items.begin (); it != items.end (); ++it) {
 				it->statusReset();
