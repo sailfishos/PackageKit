@@ -3515,7 +3515,7 @@ backend_install_packages_thread (PkBackendJob *job, GVariant *params, gpointer u
 				pk_backend_job_error_code (job,
 							   PK_ERROR_ENUM_PACKAGE_ALREADY_INSTALLED,
 							   "higher version \"%s\" of package %s.%s is already installed",
-							   latest_pkg->edition ().version ().c_str (),
+							   latest_pkg ? latest_pkg->edition ().version ().c_str () : "NULL",
 							   split[PK_PACKAGE_ID_NAME],
 							   split[PK_PACKAGE_ID_ARCH]);
 				return;
