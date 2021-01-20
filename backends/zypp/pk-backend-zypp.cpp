@@ -226,6 +226,8 @@ zypp_reset_pool () // may throw a ZYppFactoryException
 			} catch (const Exception &ex) {
 				ERR << "Failed to reload repository " << repoInfo.alias() << ": " << ex.asUserString() << std::endl;
 			}
+		} else {
+			ERR << "Repository not cached! " << repoInfo.alias() << std::endl;
 		}
 	}
 
@@ -3826,6 +3828,21 @@ backend_resolve_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
 	
 	if (zypp == NULL){
 		return;
+	}
+
+	// Make sure every enabled repo is cached before proceeding
+	RepoManager manager;
+	bool force_refresh = false;
+	for (RepoManager::RepoConstIterator it = manager.repoBegin(); it != manager.repoEnd(); ++it) {
+		RepoInfo repoInfo (*it);
+		if (repoInfo.enabled() && !manager.isCached(repoInfo)) {
+			LOG << "Repository " << repoInfo.alias () << " not in disk cache. Attempting refresh." << std::endl;
+			force_refresh = true;
+			break;
+		}
+	}
+	if (!zypp_refresh_cache (job, zypp, force_refresh)) {
+		ERR << "Could not refresh cache. Results may be incomplete." << std::endl;
 	}
 	
 	pk_backend_job_set_status (job, PK_STATUS_ENUM_QUERY);
