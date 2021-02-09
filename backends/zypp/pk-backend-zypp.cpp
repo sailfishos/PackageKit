@@ -2225,6 +2225,22 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo
 			<< total_remove_bytes << " remove, "
 			<< total_cached_bytes << " cached" << std::endl;
 
+		if (pk_bitfield_contain (transaction_flags, PK_TRANSACTION_FLAG_ENUM_SIMULATE) &&
+		    pk_bitfield_contain (transaction_flags, PK_TRANSACTION_FLAG_ENUM_EXT_DOWNLOAD_SIZE)) {
+
+			LOG << "Simulate requested, sending notifications and resetting status" << std::endl;
+			for (ResPool::const_iterator it = pool.begin (); it != pool.end (); ++it) {
+				it->statusReset ();
+			}
+
+			zypp_send_size_details (job, "::DOWNLOAD", total_download_bytes);
+			zypp_send_size_details (job, "::INSTALL", total_install_bytes);
+			zypp_send_size_details (job, "::REMOVE", total_remove_bytes);
+			zypp_send_size_details (job, "::CACHED", total_cached_bytes);
+
+			goto exit;
+		}
+
 		int64_t required_space_bytes_download = total_download_bytes;
 		int64_t required_space_bytes_installation = (type == UPGRADE_SYSTEM)
 		                ? MAX(0, total_install_bytes - total_remove_bytes)
@@ -2262,22 +2278,6 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo
 					"Not enough space for installation. Need %.2f MiB, have %.2f MiB.\n",
 					(float) required_space_bytes_installation / (1024. * 1024),
 					(float) free_space_bytes_installation / (1024. * 1024));
-			goto exit;
-		}
-
-		if (pk_bitfield_contain (transaction_flags, PK_TRANSACTION_FLAG_ENUM_SIMULATE) &&
-		    pk_bitfield_contain (transaction_flags, PK_TRANSACTION_FLAG_ENUM_EXT_DOWNLOAD_SIZE)) {
-
-			LOG << "Simulate requested, sending notifications and resetting status" << std::endl;
-			for (ResPool::const_iterator it = pool.begin (); it != pool.end (); ++it) {
-				it->statusReset ();
-			}
-
-			zypp_send_size_details (job, "::DOWNLOAD", total_download_bytes);
-			zypp_send_size_details (job, "::INSTALL", total_install_bytes);
-			zypp_send_size_details (job, "::REMOVE", total_remove_bytes);
-			zypp_send_size_details (job, "::CACHED", total_cached_bytes);
-
 			goto exit;
 		}
 
