@@ -19,9 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifdef HAVE_CONFIG_H
-#  include <config.h>
-#endif
+#include <config.h>
 
 #include <glib.h>
 #include <errno.h>
@@ -97,8 +95,37 @@ pk_offline_action_from_string (const gchar *action)
 	return PK_OFFLINE_ACTION_UNKNOWN;
 }
 
+static GDBusCallFlags
+pk_offline_flags_to_gdbus_call_flags (PkOfflineFlags flags)
+{
+	if ((flags & PK_OFFLINE_FLAGS_INTERACTIVE) != 0)
+		return G_DBUS_CALL_FLAGS_ALLOW_INTERACTIVE_AUTHORIZATION;
+	return G_DBUS_CALL_FLAGS_NONE;
+}
+
 /**
  * pk_offline_cancel:
+ * @cancellable: A #GCancellable or %NULL
+ * @error: A #GError or %NULL
+ *
+ * Cancels the offline operation that has been scheduled. If there is no
+ * scheduled offline operation then this method returns with success.
+ * The function always allows user interaction. To change the behavior,
+ * use pk_offline_cancel_with_flags().
+ *
+ * Return value: %TRUE for success, else %FALSE and @error set
+ *
+ * Since: 0.9.6
+ **/
+gboolean
+pk_offline_cancel (GCancellable *cancellable, GError **error)
+{
+	return pk_offline_cancel_with_flags (PK_OFFLINE_FLAGS_INTERACTIVE, cancellable, error);
+}
+
+/**
+ * pk_offline_cancel_with_flags:
+ * @flags: bit-or of #PkOfflineFlags
  * @cancellable: A #GCancellable or %NULL
  * @error: A #GError or %NULL
  *
@@ -107,10 +134,10 @@ pk_offline_action_from_string (const gchar *action)
  *
  * Return value: %TRUE for success, else %FALSE and @error set
  *
- * Since: 0.9.6
+ * Since: 1.2.5
  **/
 gboolean
-pk_offline_cancel (GCancellable *cancellable, GError **error)
+pk_offline_cancel_with_flags (PkOfflineFlags flags, GCancellable *cancellable, GError **error)
 {
 	g_autoptr(GDBusConnection) connection = NULL;
 	g_autoptr(GVariant) res = NULL;
@@ -127,7 +154,7 @@ pk_offline_cancel (GCancellable *cancellable, GError **error)
 					   "Cancel",
 					   NULL,
 					   NULL,
-					   G_DBUS_CALL_FLAGS_NONE,
+					   pk_offline_flags_to_gdbus_call_flags (flags),
 					   -1,
 					   cancellable,
 					   error);
@@ -141,8 +168,10 @@ pk_offline_cancel (GCancellable *cancellable, GError **error)
  * @cancellable: A #GCancellable or %NULL
  * @error: A #GError or %NULL
  *
- * Crears the last offline operation report, which may be success or failure.
+ * Clears the last offline operation report, which may be success or failure.
  * If the report does not exist then this method returns success.
+ * The function always allows user interaction. To change the behavior,
+ * use pk_offline_clear_results_with_flags().
  *
  * Return value: %TRUE for success, else %FALSE and @error set
  *
@@ -150,6 +179,25 @@ pk_offline_cancel (GCancellable *cancellable, GError **error)
  **/
 gboolean
 pk_offline_clear_results (GCancellable *cancellable, GError **error)
+{
+	return pk_offline_clear_results_with_flags (PK_OFFLINE_FLAGS_INTERACTIVE, cancellable, error);
+}
+
+/**
+ * pk_offline_clear_results_with_flags:
+ * @flags: bit-or of #PkOfflineFlags
+ * @cancellable: A #GCancellable or %NULL
+ * @error: A #GError or %NULL
+ *
+ * Clears the last offline operation report, which may be success or failure.
+ * If the report does not exist then this method returns success.
+ *
+ * Return value: %TRUE for success, else %FALSE and @error set
+ *
+ * Since: 1.2.5
+ **/
+gboolean
+pk_offline_clear_results_with_flags (PkOfflineFlags flags, GCancellable *cancellable, GError **error)
 {
 	g_autoptr(GDBusConnection) connection = NULL;
 	g_autoptr(GVariant) res = NULL;
@@ -166,7 +214,7 @@ pk_offline_clear_results (GCancellable *cancellable, GError **error)
 					   "ClearResults",
 					   NULL,
 					   NULL,
-					   G_DBUS_CALL_FLAGS_NONE,
+					   pk_offline_flags_to_gdbus_call_flags (flags),
 					   -1,
 					   cancellable,
 					   error);
@@ -183,6 +231,8 @@ pk_offline_clear_results (GCancellable *cancellable, GError **error)
  *
  * Triggers the offline update so that the next reboot will perform the
  * pending transaction.
+ * The function always allows user interaction. To change the behavior,
+ * use pk_offline_trigger_with_flags().
  *
  * Return value: %TRUE for success, else %FALSE and @error set
  *
@@ -190,6 +240,26 @@ pk_offline_clear_results (GCancellable *cancellable, GError **error)
  **/
 gboolean
 pk_offline_trigger (PkOfflineAction action, GCancellable *cancellable, GError **error)
+{
+	return pk_offline_trigger_with_flags (action, PK_OFFLINE_FLAGS_INTERACTIVE, cancellable, error);
+}
+
+/**
+ * pk_offline_trigger_with_flags:
+ * @action: a #PkOfflineAction, e.g. %PK_OFFLINE_ACTION_REBOOT
+ * @flags: bit-or of #PkOfflineFlags
+ * @cancellable: A #GCancellable or %NULL
+ * @error: A #GError or %NULL
+ *
+ * Triggers the offline update so that the next reboot will perform the
+ * pending transaction.
+ *
+ * Return value: %TRUE for success, else %FALSE and @error set
+ *
+ * Since: 1.2.5
+ **/
+gboolean
+pk_offline_trigger_with_flags (PkOfflineAction action, PkOfflineFlags flags, GCancellable *cancellable, GError **error)
 {
 	const gchar *tmp;
 	g_autoptr(GDBusConnection) connection = NULL;
@@ -208,7 +278,7 @@ pk_offline_trigger (PkOfflineAction action, GCancellable *cancellable, GError **
 					   "Trigger",
 					   g_variant_new ("(s)", tmp),
 					   NULL,
-					   G_DBUS_CALL_FLAGS_NONE,
+					   pk_offline_flags_to_gdbus_call_flags (flags),
 					   -1,
 					   cancellable,
 					   error);
@@ -225,6 +295,8 @@ pk_offline_trigger (PkOfflineAction action, GCancellable *cancellable, GError **
  *
  * Triggers the offline system upgrade so that the next reboot will perform the
  * pending transaction.
+ * The function always allows user interaction. To change the behavior,
+ * use pk_offline_trigger_upgrade_with_flags().
  *
  * Return value: %TRUE for success, else %FALSE and @error set
  *
@@ -232,6 +304,26 @@ pk_offline_trigger (PkOfflineAction action, GCancellable *cancellable, GError **
  **/
 gboolean
 pk_offline_trigger_upgrade (PkOfflineAction action, GCancellable *cancellable, GError **error)
+{
+	return pk_offline_trigger_upgrade_with_flags (action, PK_OFFLINE_FLAGS_INTERACTIVE, cancellable, error);
+}
+
+/**
+ * pk_offline_trigger_upgrade_with_flags:
+ * @action: a #PkOfflineAction, e.g. %PK_OFFLINE_ACTION_REBOOT
+ * @flags: bit-or of #PkOfflineFlags
+ * @cancellable: A #GCancellable or %NULL
+ * @error: A #GError or %NULL
+ *
+ * Triggers the offline system upgrade so that the next reboot will perform the
+ * pending transaction.
+ *
+ * Return value: %TRUE for success, else %FALSE and @error set
+ *
+ * Since: 1.2.5
+ **/
+gboolean
+pk_offline_trigger_upgrade_with_flags (PkOfflineAction action, PkOfflineFlags flags, GCancellable *cancellable, GError **error)
 {
 	const gchar *tmp;
 	g_autoptr(GDBusConnection) connection = NULL;
@@ -250,7 +342,7 @@ pk_offline_trigger_upgrade (PkOfflineAction action, GCancellable *cancellable, G
 					   "TriggerUpgrade",
 					   g_variant_new ("(s)", tmp),
 					   NULL,
-					   G_DBUS_CALL_FLAGS_NONE,
+					   pk_offline_flags_to_gdbus_call_flags (flags),
 					   -1,
 					   cancellable,
 					   error);

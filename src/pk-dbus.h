@@ -52,7 +52,8 @@ G_DEFINE_AUTOPTR_CLEANUP_FUNC(PkDbus, g_object_unref)
 
 GType		 pk_dbus_get_type		(void);
 PkDbus		*pk_dbus_new			(void);
-
+gboolean	 pk_dbus_connect		(PkDbus		*dbus,
+						 GError		**error);
 guint		 pk_dbus_get_uid		(PkDbus		*dbus,
 						 const gchar	*sender);
 guint		 pk_dbus_get_pid		(PkDbus		*dbus,

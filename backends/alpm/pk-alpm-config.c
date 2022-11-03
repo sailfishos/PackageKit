@@ -24,6 +24,7 @@
 #include <alpm.h>
 #include <glob.h>
 #include <string.h>
+#include <sys/wait.h>
 #include <sys/utsname.h>
 #include <glib/gstdio.h>
 #include <syslog.h>
@@ -38,15 +39,15 @@ static gchar *xfercmd = NULL;
 
 typedef struct
 {
-	 gboolean		 checkspace, color, ilovecandy, totaldl,
-				 usesyslog, verbosepkglists;
+	 gboolean		 checkspace, color, disabledownloadtimeout, ilovecandy,
+				noprogressbar, totaldl, usesyslog, verbosepkglists, is_check;
 
 	 gchar			*arch, *cleanmethod, *dbpath, *gpgdir, *logfile,
 				*root, *xfercmd;
 
 	 alpm_list_t		*cachedirs, *holdpkgs, *ignoregroups,
 				*ignorepkgs, *localfilesiglevels, *noextracts,
-				*noupgrades, *remotefilesiglevels;
+				*noupgrades, *remotefilesiglevels, *hookdirs;
 
 	 alpm_list_t		*sections;
 	 GRegex			*xrepo, *xarch;
@@ -105,6 +106,7 @@ pk_alpm_config_free (PkAlpmConfig *config)
 	FREELIST (config->noextracts);
 	FREELIST (config->noupgrades);
 	FREELIST (config->remotefilesiglevels);
+	FREELIST (config->hookdirs);
 
 	alpm_list_free_inner (config->sections, pk_alpm_config_section_free);
 	alpm_list_free (config->sections);
@@ -130,11 +132,27 @@ pk_alpm_config_set_color (PkAlpmConfig *config)
 }
 
 static void
+pk_alpm_config_set_disabledownloadtimeout (PkAlpmConfig *config)
+{
+	g_return_if_fail (config != NULL);
+
+	config->disabledownloadtimeout = TRUE;
+}
+
+static void
 pk_alpm_config_set_ilovecandy (PkAlpmConfig *config)
 {
 	g_return_if_fail (config != NULL);
 
 	config->ilovecandy = TRUE;
+}
+
+static void
+pk_alpm_config_set_noprogressbar (PkAlpmConfig *config)
+{
+	g_return_if_fail (config != NULL);
+
+	config->noprogressbar = TRUE;
 }
 
 static void
@@ -171,7 +189,9 @@ typedef struct
 static const PkAlpmConfigBoolean pk_alpm_config_boolean_options[] = {
 	{ "CheckSpace", pk_alpm_config_set_checkspace },
 	{ "Color", pk_alpm_config_set_color },
+	{ "DisableDownloadTimeout", pk_alpm_config_set_disabledownloadtimeout },
 	{ "ILoveCandy", pk_alpm_config_set_ilovecandy },
+	{ "NoProgressBar", pk_alpm_config_set_noprogressbar },
 	{ "TotalDownload", pk_alpm_config_set_totaldl },
 	{ "UseSyslog", pk_alpm_config_set_usesyslog },
 	{ "VerbosePkgLists", pk_alpm_config_set_verbosepkglists },
@@ -350,6 +370,7 @@ static const PkAlpmConfigList pk_alpm_config_list_options[] = {
 	{ "NoUpgrade", G_STRUCT_OFFSET (PkAlpmConfig, noupgrades) },
 	{ "RemoteFileSigLevel", G_STRUCT_OFFSET (PkAlpmConfig,
 						 remotefilesiglevels) },
+	{ "HookDir", G_STRUCT_OFFSET (PkAlpmConfig, hookdirs) },
 	{ NULL, 0 }
 };
 
@@ -589,6 +610,11 @@ pk_alpm_config_parse (PkAlpmConfig *config, const gchar *filename,
 			continue;
 		}
 
+		if (g_strcmp0 (key, "ParallelDownloads") == 0 && str != NULL) {
+			/* Ignore "ParallelDownloads" key instead of crashing */
+			continue;
+		}
+
 		/* report errors from above */
 		g_set_error (&e, PK_ALPM_ERROR, PK_ALPM_ERR_CONFIG_INVALID,
 			     "unrecognised directive '%s'", key);
@@ -606,7 +632,7 @@ static alpm_handle_t *
 pk_alpm_config_initialize_alpm (PkAlpmConfig *config, GError **error)
 {
 	alpm_handle_t *handle;
-	alpm_errno_t errno;
+	alpm_errno_t alpm_err;
 	gsize dir = 1;
 
 	g_return_val_if_fail (config != NULL, FALSE);
@@ -624,11 +650,22 @@ pk_alpm_config_initialize_alpm (PkAlpmConfig *config, GError **error)
 					      NULL);
 	}
 
-	g_debug ("initializing alpm");
-	handle = alpm_initialize (config->root, config->dbpath, &errno);
+	if (config->is_check) {
+		gchar* path;
+
+		g_free(config->dbpath);
+		path = g_strconcat (config->root,
+						 "/var/lib/PackageKit/alpm" + dir,
+						 NULL);
+		g_mkdir_with_parents(path, 0755);
+		config->dbpath = path;
+	}
+
+
+	handle = alpm_initialize (config->root, config->dbpath, &alpm_err);
 	if (handle == NULL) {
-		g_set_error_literal (error, PK_ALPM_ERROR, errno,
-				     alpm_strerror (errno));
+		g_set_error_literal (error, PK_ALPM_ERROR, alpm_err,
+				     alpm_strerror (alpm_err));
 		return handle;
 	}
 
@@ -639,9 +676,9 @@ pk_alpm_config_initialize_alpm (PkAlpmConfig *config, GError **error)
 	}
 
 	if (alpm_option_set_gpgdir (handle, config->gpgdir) < 0) {
-		errno = alpm_errno (handle);
-		g_set_error (error, PK_ALPM_ERROR, errno, "GPGDir: %s",
-			     alpm_strerror (errno));
+		alpm_err = alpm_errno (handle);
+		g_set_error (error, PK_ALPM_ERROR, alpm_err, "GPGDir: %s",
+			     alpm_strerror (alpm_err));
 		return handle;
 	}
 
@@ -651,10 +688,17 @@ pk_alpm_config_initialize_alpm (PkAlpmConfig *config, GError **error)
 					       NULL);
 	}
 
+	if (config->is_check) {
+		g_free(config->logfile);
+		config->logfile = g_strconcat (config->root,
+						  "/var/log/pacman.PackageKit.log" + dir,
+						  NULL);
+	}
+
 	if (alpm_option_set_logfile (handle, config->logfile) < 0) {
-		errno = alpm_errno (handle);
-		g_set_error (error, PK_ALPM_ERROR, errno, "LogFile: %s",
-			     alpm_strerror (errno));
+		alpm_err = alpm_errno (handle);
+		g_set_error (error, PK_ALPM_ERROR, alpm_err, "LogFile: %s",
+			     alpm_strerror (alpm_err));
 		return handle;
 	}
 
@@ -667,9 +711,9 @@ pk_alpm_config_initialize_alpm (PkAlpmConfig *config, GError **error)
 
 	/* alpm takes ownership */
 	if (alpm_option_set_cachedirs (handle, config->cachedirs) < 0) {
-		errno = alpm_errno (handle);
-		g_set_error (error, PK_ALPM_ERROR, errno, "CacheDir: %s",
-			     alpm_strerror (errno));
+		alpm_err = alpm_errno (handle);
+		g_set_error (error, PK_ALPM_ERROR, alpm_err, "CacheDir: %s",
+			     alpm_strerror (alpm_err));
 		return handle;
 	}
 	config->cachedirs = NULL;
@@ -765,7 +809,7 @@ static gboolean
 pk_alpm_config_configure_repos (PkBackend *backend, PkAlpmConfig *config,
 				   alpm_handle_t *handle, GError **error)
 {
-	alpm_siglevel_t base, level, mask, local, remote;
+	alpm_siglevel_t base, level = 0, mask = 0, local, remote;
 	const alpm_list_t *i;
 	PkAlpmConfigSection *options;
 
@@ -803,7 +847,14 @@ pk_alpm_config_configure_repos (PkBackend *backend, PkAlpmConfig *config,
 		if (repo_level == ALPM_SIG_USE_DEFAULT)
 			 return FALSE;
 
-		pk_alpm_add_database (backend, repo->name, repo->servers, repo_level);
+		if (!config->is_check) {
+			pk_alpm_add_database (backend, repo->name, repo->servers, repo_level);
+		} else {
+			alpm_db_t *db;
+
+			db = alpm_register_syncdb (handle, repo->name, repo_level);
+			alpm_db_set_servers (db, alpm_list_strdup (repo->servers));
+		}
 	}
 
 	return TRUE;
@@ -837,7 +888,7 @@ pk_alpm_spawn (const gchar *command)
 }
 
 static gint
-pk_alpm_fetchcb (const gchar *url, const gchar *path, gint force)
+pk_alpm_fetchcb (void *ctx, const gchar *url, const gchar *path, gint force)
 {
 	GRegex *xo, *xi;
 	gint result = 0;
@@ -909,6 +960,9 @@ pk_alpm_config_configure_alpm (PkBackend *backend, PkAlpmConfig *config, GError 
 {
 	PkBackendAlpmPrivate *priv = pk_backend_get_user_data (config->backend);
 	alpm_handle_t *handle;
+	gchar **arches;
+	gint i;
+	alpm_list_t *arches_list = NULL;
 
 	g_return_val_if_fail (config != NULL, FALSE);
 
@@ -918,7 +972,14 @@ pk_alpm_config_configure_alpm (PkBackend *backend, PkAlpmConfig *config, GError 
 
 	alpm_option_set_checkspace (handle, config->checkspace);
 	alpm_option_set_usesyslog (handle, config->usesyslog);
-	alpm_option_set_arch (handle, config->arch);
+
+	arches = g_strsplit (config->arch, ",", -1);
+	for (i = 0; arches[i]; i++) {
+		arches_list = alpm_list_add (arches_list, arches[i]);
+	}
+	alpm_option_set_architectures (handle, arches_list);
+	g_strfreev (arches);
+	alpm_list_free (arches_list);
 
 	/* backend takes ownership */
 	g_free (xfercmd);
@@ -926,9 +987,9 @@ pk_alpm_config_configure_alpm (PkBackend *backend, PkAlpmConfig *config, GError 
 	config->xfercmd = NULL;
 
 	if (xfercmd != NULL) {
-		alpm_option_set_fetchcb (handle, pk_alpm_fetchcb);
+		alpm_option_set_fetchcb (handle, pk_alpm_fetchcb, NULL);
 	} else {
-		alpm_option_set_fetchcb (handle, NULL);
+		alpm_option_set_fetchcb (handle, NULL, NULL);
 	}
 
 	/* backend takes ownership */
@@ -952,13 +1013,17 @@ pk_alpm_config_configure_alpm (PkBackend *backend, PkAlpmConfig *config, GError 
 	alpm_option_set_noupgrades (handle, config->noupgrades);
 	config->noupgrades = NULL;
 
+	/* alpm takes ownership */
+	alpm_option_set_noupgrades (handle, config->hookdirs);
+	config->hookdirs = NULL;
+
 	pk_alpm_config_configure_repos (backend, config, handle, error);
 
 	return handle;
 }
 
 alpm_handle_t *
-pk_alpm_configure (PkBackend *backend, const gchar *filename, GError **error)
+pk_alpm_configure (PkBackend *backend, const gchar *filename, gboolean is_check, GError **error)
 {
 	PkAlpmConfig *config;
 	alpm_handle_t *handle = NULL;
@@ -970,8 +1035,11 @@ pk_alpm_configure (PkBackend *backend, const gchar *filename, GError **error)
 	config = pk_alpm_config_new (backend);
 	pk_alpm_config_enter_section (config, "options");
 
-	if (pk_alpm_config_parse (config, filename, NULL, &e))
+
+	if (pk_alpm_config_parse (config, filename, NULL, &e)) {
+		config->is_check = is_check;
 		handle = pk_alpm_config_configure_alpm (backend, config, &e);
+	}
 
 	pk_alpm_config_free (config);
 	if (e != NULL) {

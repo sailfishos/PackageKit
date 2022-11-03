@@ -32,6 +32,9 @@
 #include <glib-unix.h>
 #include <glib/gi18n.h>
 #include <packagekit-glib2/pk-debug.h>
+#ifdef HAVE_SYSTEMD_SD_DAEMON_H
+#include <systemd/sd-daemon.h>
+#endif
 
 #include "pk-engine.h"
 #include "pk-shared.h"
@@ -178,8 +181,6 @@ main (int argc, char *argv[])
 
 	/* after how long do we timeout? */
 	exit_idle_time = g_key_file_get_integer (conf, "Daemon", "ShutdownTimeout", NULL);
-	if (exit_idle_time == 0)
-		exit_idle_time = 300;
 	g_debug ("daemon shutdown set to %i seconds", exit_idle_time);
 
 	/* override the backend name */
@@ -246,6 +247,10 @@ out:
 	/* log the shutdown */
 	syslog (LOG_DAEMON | LOG_DEBUG, "daemon quit");
 	closelog ();
+
+#ifdef HAVE_SYSTEMD_SD_DAEMON_H
+	sd_notify (0, "STOPPING=1");
+#endif
 
 	if (helper.timer_id > 0)
 		g_source_remove (helper.timer_id);

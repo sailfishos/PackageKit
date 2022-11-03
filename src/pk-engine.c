@@ -852,6 +852,18 @@ pk_engine_is_proxy_unchanged (PkEngine *engine, const gchar *sender,
 	return TRUE;
 }
 
+static PolkitCheckAuthorizationFlags
+get_polkit_flags_for_dbus_invocation (GDBusMethodInvocation *invocation)
+{
+	PolkitCheckAuthorizationFlags flags = POLKIT_CHECK_AUTHORIZATION_FLAGS_NONE;
+	GDBusMessage *message = g_dbus_method_invocation_get_message (invocation);
+
+	if (g_dbus_message_get_flags (message) & G_DBUS_MESSAGE_FLAGS_ALLOW_INTERACTIVE_AUTHORIZATION)
+		flags |= POLKIT_CHECK_AUTHORIZATION_FLAGS_ALLOW_USER_INTERACTION;
+
+	return flags;
+}
+
 static void
 pk_engine_set_proxy (PkEngine *engine,
 		     const gchar *proxy_http,
@@ -935,7 +947,7 @@ pk_engine_set_proxy (PkEngine *engine,
 	polkit_authority_check_authorization (engine->priv->authority, subject,
 					      "org.freedesktop.packagekit.system-network-proxy-configure",
 					      NULL,
-					      POLKIT_CHECK_AUTHORIZATION_FLAGS_ALLOW_USER_INTERACTION,
+					      get_polkit_flags_for_dbus_invocation (context),
 					      NULL,
 					      (GAsyncReadyCallback) pk_engine_action_obtain_proxy_authorization_finished_cb,
 					      state);
@@ -1824,7 +1836,7 @@ pk_engine_offline_method_call (GDBusConnection *connection_, const gchar *sender
 		polkit_authority_check_authorization (engine->priv->authority, subject,
 						      "org.freedesktop.packagekit.trigger-offline-update",
 						      NULL,
-						      POLKIT_CHECK_AUTHORIZATION_FLAGS_ALLOW_USER_INTERACTION,
+						      get_polkit_flags_for_dbus_invocation (invocation),
 						      NULL,
 						      pk_engine_offline_helper_cb,
 						      helper);
@@ -1838,7 +1850,7 @@ pk_engine_offline_method_call (GDBusConnection *connection_, const gchar *sender
 		polkit_authority_check_authorization (engine->priv->authority, subject,
 						      "org.freedesktop.packagekit.clear-offline-update",
 						      NULL,
-						      POLKIT_CHECK_AUTHORIZATION_FLAGS_ALLOW_USER_INTERACTION,
+						      get_polkit_flags_for_dbus_invocation (invocation),
 						      NULL,
 						      pk_engine_offline_helper_cb,
 						      helper);
@@ -1865,7 +1877,7 @@ pk_engine_offline_method_call (GDBusConnection *connection_, const gchar *sender
 		polkit_authority_check_authorization (engine->priv->authority, subject,
 						      "org.freedesktop.packagekit.trigger-offline-update",
 						      NULL,
-						      POLKIT_CHECK_AUTHORIZATION_FLAGS_ALLOW_USER_INTERACTION,
+						      get_polkit_flags_for_dbus_invocation (invocation),
 						      NULL,
 						      pk_engine_offline_helper_cb,
 						      helper);
@@ -1892,7 +1904,7 @@ pk_engine_offline_method_call (GDBusConnection *connection_, const gchar *sender
 		polkit_authority_check_authorization (engine->priv->authority, subject,
 						      "org.freedesktop.packagekit.trigger-offline-upgrade",
 						      NULL,
-						      POLKIT_CHECK_AUTHORIZATION_FLAGS_ALLOW_USER_INTERACTION,
+						      get_polkit_flags_for_dbus_invocation (invocation),
 						      NULL,
 						      pk_engine_offline_helper_cb,
 						      helper);
@@ -1944,14 +1956,14 @@ pk_engine_on_bus_acquired_cb (GDBusConnection *connection,
 	PkEngine *engine = PK_ENGINE (user_data);
 	guint registration_id;
 	static const GDBusInterfaceVTable iface_daemon_vtable = {
-		pk_engine_daemon_method_call,
-		pk_engine_daemon_get_property,
-		NULL
+		.method_call = pk_engine_daemon_method_call,
+		.get_property = pk_engine_daemon_get_property,
+		.set_property = NULL
 	};
 	static const GDBusInterfaceVTable iface_offline_vtable = {
-		pk_engine_offline_method_call,
-		pk_engine_offline_get_property,
-		NULL
+		.method_call = pk_engine_offline_method_call,
+		.get_property = pk_engine_offline_get_property,
+		.set_property = NULL
 	};
 
 	/* save copy for emitting signals */

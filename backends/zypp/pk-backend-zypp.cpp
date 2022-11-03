@@ -46,7 +46,6 @@
 #include <gmodule.h>
 #include <pk-backend.h>
 #include <pk-shared.h>
-#define I_KNOW_THE_PACKAGEKIT_GLIB2_API_IS_SUBJECT_TO_CHANGE
 #include <packagekit-glib2/packagekit.h>
 #include <packagekit-glib2/pk-enum.h>
 
@@ -1831,6 +1830,8 @@ zypp_get_package_updates (string repo, set<PoolItem> &pks)
 
 	if (is_tumbleweed ()) {
 		resolver->setUpgradeMode (FALSE);
+	} else {
+		resolver->setUpdateMode (FALSE);
 	}
 }
 
@@ -2541,6 +2542,9 @@ pk_backend_initialize (GKeyFile *conf, PkBackend *backend)
 	priv->zypp_mutex = PTHREAD_MUTEX_INITIALIZER;
 	priv->exec = ExecCounters();
 
+	/* Set PATH variable to avoid problems when installing packges(bsc#1175315). */
+	g_setenv("PATH", "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin", TRUE);
+
 	g_debug ("zypp_backend_initialize");
 }
 
@@ -2548,6 +2552,8 @@ void
 pk_backend_destroy (PkBackend *backend)
 {
 	g_debug ("zypp_backend_destroy");
+
+	filesystem::recursive_rmdir (zypp::myTmpDir ());
 
 	g_free (_repoName);
 	delete priv;
@@ -2847,6 +2853,8 @@ backend_get_details_thread (PkBackendJob *job, GVariant *params, gpointer user_d
 	if (zypp == NULL){
 		return;
 	}
+
+	zypp_build_pool (zypp, true);
 
 	pk_backend_job_set_status (job, PK_STATUS_ENUM_QUERY);
 
@@ -3343,6 +3351,8 @@ backend_get_update_detail_thread (PkBackendJob *job, GVariant *params, gpointer 
 	}
 	pk_backend_job_set_status (job, PK_STATUS_ENUM_QUERY);
 
+	zypp_build_pool (zypp, TRUE);
+
 	for (uint i = 0; package_ids[i]; i++) {
 		sat::Solvable solvable = zypp_get_package_by_id (package_ids[i]);
 		MIL << package_ids[i] << " " << solvable << std::endl;
@@ -3502,12 +3512,7 @@ backend_install_packages_thread (PkBackendJob *job, GVariant *params, gpointer u
 			if (relation == EQUAL_VERSION &&
 			    !pk_bitfield_contain (transaction_flags,
 						  PK_TRANSACTION_FLAG_ENUM_ALLOW_REINSTALL)) {
-				g_autofree gchar *printable_tmp = pk_package_id_to_printable (package_ids[i]);
-				pk_backend_job_error_code (job,
-							   PK_ERROR_ENUM_PACKAGE_ALREADY_INSTALLED,
-							   "%s is already installed",
-							   printable_tmp);
-				return;
+				continue;
 			}
 
 			if (relation == OLDER_VERSION &&
@@ -3933,6 +3938,12 @@ backend_find_packages_thread (PkBackendJob *job, GVariant *params, gpointer user
 		&_filters,
 		&values);
 
+	if (values == NULL && values[0] == NULL) {
+		pk_backend_job_error_code (job, PK_ERROR_ENUM_PACKAGE_ID_INVALID,
+					   "Empty search string is not supported.");
+		return;
+	}
+
 	ZyppJob zjob(job);
 	ZYpp::Ptr zypp = zjob.get_zypp();
 	
@@ -4201,6 +4212,8 @@ backend_get_files_thread (PkBackendJob *job, GVariant *params, gpointer user_dat
 		return;
 	}
 
+	zypp_build_pool (zypp, true);
+
 	for (uint i = 0; package_ids[i]; i++) {
 		pk_backend_job_set_status (job, PK_STATUS_ENUM_QUERY);
 		sat::Solvable solvable = zypp_get_package_by_id (package_ids[i]);
@@ -4296,6 +4309,36 @@ pk_backend_get_packages (PkBackend *backend, PkBackendJob *job, PkBitfield filte
 }
 
 static void
+upgrade_system (PkBackendJob *job,
+		ZYpp::Ptr zypp,
+		PkBitfield transaction_flags)
+{
+	set<PoolItem> candidates;
+
+	/* Only refresh repos when it's simulating. */
+	if (pk_bitfield_contain (transaction_flags, PK_TRANSACTION_FLAG_ENUM_SIMULATE)) {
+		/* refresh the repos before checking for updates. */
+		if (!zypp_refresh_cache (job, zypp, FALSE)) {
+			return;
+		}
+		zypp_get_updates (job, zypp, candidates);
+		if (candidates.empty ()) {
+			pk_backend_job_error_code (job, PK_ERROR_ENUM_NO_DISTRO_UPGRADE_DATA,
+						   "No Distribution Upgrade Available.");
+
+			return;
+		}
+	}
+
+	zypp->resolver ()->dupSetAllowVendorChange (ZConfig::instance ().solver_dupAllowVendorChange ());
+	zypp->resolver ()->doUpgrade ();
+
+	zypp_perform_execution (job, zypp, UPGRADE_SYSTEM, FALSE, transaction_flags);
+
+	zypp->resolver ()->setUpgradeMode (FALSE);
+}
+
+static void
 backend_update_packages_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
 {
 	PkBitfield transaction_flags = 0;
@@ -4311,17 +4354,14 @@ backend_update_packages_thread (PkBackendJob *job, GVariant *params, gpointer us
 		return;
 	}
 
-	if (is_tumbleweed ()) {
-		zypp_backend_finished_error (job,
-					     PK_ERROR_ENUM_NOT_SUPPORTED,
-					     "This product requires to be updated by calling 'pkcon upgrade-system'");
-		return;
-	}
-
 	ResPool pool = zypp_build_pool (zypp, TRUE);
 	PkRestartEnum restart = PK_RESTART_ENUM_NONE;
-
 	PoolStatusSaver saver;
+
+	if (is_tumbleweed ()) {
+		upgrade_system (job, zypp, transaction_flags);
+		return;
+	}
 
 	for (guint i = 0; package_ids[i]; i++) {
 		sat::Solvable solvable = zypp_get_package_by_id (package_ids[i]);
@@ -4360,12 +4400,6 @@ backend_update_packages_thread (PkBackendJob *job, GVariant *params, gpointer us
 	}
 
 	zypp_perform_execution (job, zypp, UPDATE, FALSE, transaction_flags);
-
-	/* Don't reset upgrade mode if we're simulating the changes. Only reset
-	 * it after the real actions has been done. */
-	if (!pk_bitfield_contain (transaction_flags, PK_TRANSACTION_FLAG_ENUM_SIMULATE)) {
-		zypp->resolver()->setUpgradeMode(FALSE);
-	}
 }
 
 /**

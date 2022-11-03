@@ -3,7 +3,7 @@
 
 Summary:   Package management service
 Name:      PackageKit
-Version:   1.1.13
+Version:   1.2.5
 Release:   1
 License:   GPLv2+ and LGPLv2+
 URL:       https://www.freedesktop.org/software/PackageKit/
@@ -17,26 +17,15 @@ Requires: shared-mime-info
 Requires: sailfish-setup
 
 BuildRequires: glib2-devel >= 2.46
-BuildRequires: pam-devel
 BuildRequires: sqlite-devel
 BuildRequires: polkit-devel >= 0.98
-BuildRequires: libtool
-BuildRequires: perl(XML::Parser)
-BuildRequires: intltool
+BuildRequires: meson
 BuildRequires: gettext
-BuildRequires: libarchive-devel
-BuildRequires: fontconfig-devel
 BuildRequires: libzypp-devel >= 5.20.0
 BuildRequires: bzip2-devel
 BuildRequires: pkgconfig(systemd)
 BuildRequires: pkgconfig(mce)
-BuildRequires: gobject-introspection-devel
 BuildRequires: vala-devel
-BuildRequires: autoconf-archive
-
-Obsoletes: PackageKit-python
-Obsoletes: PackageKit-debug-install
-Obsoletes: PackageKit-plugin-devel
 
 %description
 PackageKit is a D-Bus abstraction layer that allows the session user
@@ -54,7 +43,6 @@ A backend for PackageKit to enable zypp functionality.
 %package doc
 Summary: Documentation for PackageKit
 Requires: %{name} = %{version}-%{release}
-Obsoletes: %{name}-docs
 
 %description doc
 %{summary}.
@@ -91,52 +79,27 @@ using PackageKit.
 %setup -q -n %{name}-%{version}
 
 %build
-# Fix autotools-related issues with Git checkout timestamps, adapted from:
-# http://www.gnu.org/software/automake/manual/html_node/CVS.html#All-Files-in-CVS
-# (see also: http://stackoverflow.com/questions/934051)
-for aclocal_file in $(find . -type f -a -name aclocal.m4); do
-    (
-        cd $(dirname $aclocal_file)
-        sleep 1
-        touch aclocal.m4
-        sleep 1
-        touch configure config.h.in
-        sleep 1
-        find . -name Makefile.in -exec touch '{}' +
-    )
-done
 
-./autogen.sh \
-        --program-prefix= --prefix=%{_prefix} \
-        --exec-prefix=%{_exec_prefix} \
-        --bindir=%{_bindir} \
-        --sbindir=%{_sbindir} \
-        --sysconfdir=%{_sysconfdir} \
-        --datadir=%{_datadir} \
-        --includedir=%{_includedir} \
-        --libdir=%{_libdir} \
-        --libexecdir=%{_libexecdir} \
-        --localstatedir=%{_localstatedir} \
-        --sharedstatedir=%{_sharedstatedir} \
-        --with-systemdsystemunitdir=%{_unitdir} \
-        --disable-static \
-        --disable-dummy \
-        --disable-cron \
-        --enable-zypp \
-        --enable-mce \
-        --disable-local \
-        --disable-gstreamer-plugin \
-        --enable-introspection=no \
-        --enable-systemd \
-        --disable-man-pages \
-        --disable-bash_completion
+%meson \
+        -Dpython_backend=false \
+        -Dgstreamer_plugin=false \
+        -Dgtk_module=false \
+        -Dbash_completion=false \
+        -Dman_pages=false \
+        -Dcron=false \
+        -Dgobject_introspection=false \
+        -Ddaemon_tests=false \
+        -Dmce=true \
+        -Dpackaging_backend=zypp
 
-make %{?_smp_mflags}
+%meson_build
+
 
 %install
+%meson_install
 
-export PATH=$PATH:`pwd`/hack
-%make_install
+# Create cache dir
+mkdir -p %{buildroot}%{_localstatedir}/cache/PackageKit
 
 # delete unneeded things
 rm -r ${RPM_BUILD_ROOT}/%{_datadir}/PackageKit/helpers/test_spawn
@@ -193,7 +156,6 @@ update-mime-database %{_datadir}/mime &> /dev/null || :
 %dir %{_sysconfdir}/PackageKit
 %dir %{_localstatedir}/lib/PackageKit
 %dir %{_localstatedir}/cache/PackageKit
-%dir %{_localstatedir}/cache/PackageKit/downloads
 %dir %{_libdir}/packagekit-backend
 %config %{_sysconfdir}/PackageKit/*.conf
 %config %{_sysconfdir}/dbus-1/system.d/*

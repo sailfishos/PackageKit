@@ -62,9 +62,9 @@ pk_alpm_transaction_add_targets (PkBackendJob *job, gchar** paths, GError **erro
 
 	for (; *paths != NULL; ++paths) {
 		if (pk_alpm_install_add_file (job, *paths) < 0) {
-			alpm_errno_t errno = alpm_errno (priv->alpm);
-			g_set_error (error, PK_ALPM_ERROR, errno, "%s: %s",
-				     *paths, alpm_strerror (errno));
+			alpm_errno_t alpm_err = alpm_errno (priv->alpm);
+			g_set_error (error, PK_ALPM_ERROR, alpm_err, "%s: %s",
+				     *paths, alpm_strerror (alpm_err));
 			return FALSE;
 		}
 	}
@@ -89,7 +89,7 @@ pk_backend_install_files_thread (PkBackendJob *job, GVariant* params, gpointer p
 	if (!only_trusted && !pk_alpm_disable_signatures (backend, &error))
 		goto out;
 
-	if (pk_alpm_transaction_initialize (job, 0, 0, &error) &&
+	if (pk_alpm_transaction_initialize (job, 0, NULL, &error) &&
 	    pk_alpm_transaction_add_targets (job, full_paths, &error) &&
 	    pk_alpm_transaction_simulate (job, &error)) {
 		if (pk_bitfield_contain (flags, PK_TRANSACTION_FLAG_ENUM_SIMULATE)) { /* simulation */

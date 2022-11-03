@@ -31,11 +31,13 @@ New versions
 Updating to new upstream version
 --------------------------------
 
-git checkout -b jb12345_update_upstream PACKAGEKIT_1_1_14
-git merge --strategy ours master -m "Reset master to tag 'PACKAGEKIT_1_1_14'"
+Have upstream git remote set and fetch from there.
+
+git checkout -b jb12345_update_upstream PACKAGEKIT_NEW_VERSION
+git merge --strategy ours master -m "Reset master to tag 'PACKAGEKIT_NEW_VERSION'"
 git checkout master
 git branch -f master-archived
-# target is either previous reset to upstream commit or PACKAGEKIT_1_1_14 if
+# target is either previous reset to upstream commit or PACKAGEKIT_NEW_VERSION if
 # doing this the very first time
 git rebase -i --onto jb12345_update_upstream <target>
 git push sailfish -u jb12345_update_upstream

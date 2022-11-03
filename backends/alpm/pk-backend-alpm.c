@@ -51,7 +51,7 @@ pk_backend_get_author (PkBackend *backend)
 }
 
 static void
-pk_alpm_logcb (alpm_loglevel_t level, const gchar *format, va_list args)
+pk_alpm_logcb (void *ctx, alpm_loglevel_t level, const gchar *format, va_list args)
 {
 	g_autofree gchar *output = NULL;
 
@@ -80,19 +80,20 @@ pk_alpm_initialize (PkBackend *backend, GError **error)
 {
 	PkBackendAlpmPrivate *priv = pk_backend_get_user_data (backend);
 
-	priv->alpm = pk_alpm_configure (backend, PK_BACKEND_CONFIG_FILE, error);
+	priv->alpm = pk_alpm_configure (backend, PK_BACKEND_CONFIG_FILE, FALSE, error);
 	if (priv->alpm == NULL) {
 		g_prefix_error (error, "using %s: ", PK_BACKEND_CONFIG_FILE);
 		return FALSE;
 	}
 
-	alpm_option_set_logcb (priv->alpm, pk_alpm_logcb);
+	priv->alpm_check = NULL;
+	alpm_option_set_logcb (priv->alpm, pk_alpm_logcb, NULL);
 
 	priv->localdb = alpm_get_localdb (priv->alpm);
 	if (priv->localdb == NULL) {
-		alpm_errno_t errno = alpm_errno (priv->alpm);
-		g_set_error (error, PK_ALPM_ERROR, errno, "[%s]: %s", "local",
-			     alpm_strerror (errno));
+		alpm_errno_t alpm_err = alpm_errno (priv->alpm);
+		g_set_error (error, PK_ALPM_ERROR, alpm_err, "[%s]: %s", "local",
+			     alpm_strerror (alpm_err));
 	}
 
 	return TRUE;

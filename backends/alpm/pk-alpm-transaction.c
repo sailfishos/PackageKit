@@ -28,8 +28,8 @@
 
 #include <syslog.h>
 
-static off_t dcomplete = 0;
-static off_t dtotal = 0;
+static off_t transaction_dcomplete = 0;
+static off_t transaction_dtotal = 0;
 
 static alpm_pkg_t *dpkg = NULL;
 static GString *dfiles = NULL;
@@ -53,9 +53,6 @@ pk_alpm_resolve_path (PkBackendJob *job, const gchar *basename)
 static gboolean
 pk_alpm_pkg_has_basename (PkBackend *backend, alpm_pkg_t *pkg, const gchar *basename)
 {
-	PkBackendAlpmPrivate *priv = pk_backend_get_user_data (backend);
-	const alpm_list_t *i;
-
 	g_return_val_if_fail (pkg != NULL, FALSE);
 	g_return_val_if_fail (basename != NULL, FALSE);
 
@@ -130,58 +127,56 @@ pk_alpm_transaction_download_start (PkBackendJob *job, const gchar *basename)
 }
 
 static void
-pk_alpm_transaction_totaldlcb (off_t total)
-{
-	PkBackendJob* job;
-	g_assert (pkalpm_current_job);
-	job = pkalpm_current_job;
-
-	if (dtotal > 0 && dpkg != NULL)
-		pk_alpm_transaction_download_end (job);
-
-	dcomplete = 0;
-	dtotal = total;
-}
-
-static void
-pk_alpm_transaction_dlcb (const gchar *basename, off_t complete, off_t total)
+pk_alpm_transaction_dlcb (void *ctx, const gchar *filename, alpm_download_event_type_t type, void *data)
 {
 	guint percentage = 100, sub_percentage = 100;
+	alpm_download_event_completed_t *completed = data;
+	alpm_download_event_progress_t *progress = data;
 
 	PkBackendJob* job;
 	g_assert (pkalpm_current_job);
 	job = pkalpm_current_job;
 
-	g_return_if_fail (basename != NULL);
-	g_return_if_fail (complete <= total);
-
-	if (total > 0)
-		sub_percentage = complete * 100 / total;
-
-	if (dtotal > 0) {
-		percentage = (dcomplete + complete) * 100 / dtotal;
-	} else if (dtotal < 0) {
-		/* database files */
-		percentage = (dcomplete * 100 + sub_percentage) / -dtotal;
-
-		if (complete == total)
-			complete = total = 1;
-		else
-			complete = total + 1;
-	}
-
-	if (complete == 0) {
-		g_debug ("downloading file %s", basename);
+	g_return_if_fail (filename != NULL);
+	switch (type) {
+	case ALPM_DOWNLOAD_INIT:
 		pk_backend_job_set_status (job, PK_STATUS_ENUM_DOWNLOAD);
-		pk_alpm_transaction_download_start (job, basename);
-	} else if (complete == total) {
-		dcomplete += complete;
+		pk_alpm_transaction_download_start (job, filename);
+		break;
+
+	case ALPM_DOWNLOAD_COMPLETED:
+		pk_backend_job_set_percentage (job, 100);
+		transaction_dcomplete += completed->total;
+		break;
+
+	case ALPM_DOWNLOAD_PROGRESS:
+		if (transaction_dtotal > 0) {
+			transaction_dcomplete += progress->downloaded;
+			percentage = ((transaction_dcomplete + progress->downloaded) * 100) / transaction_dtotal;
+			pk_backend_job_set_percentage (job, percentage);
+		} else if (transaction_dtotal < 0) {
+			static off_t previous_total = 0;
+			static guint current_database = 0;
+			guint total_databases = -transaction_dtotal;
+
+			if (progress->total != previous_total) {
+				current_database++;
+				previous_total = progress->total;
+			}
+
+			percentage = ((current_database - 1) * 100) / total_databases;
+			percentage += sub_percentage / total_databases;
+
+			pk_backend_job_set_percentage (job, percentage);
+		}
+		break;
+	default:
+		syslog (LOG_DAEMON | LOG_WARNING, "unhandled download callback case, most likely libalpm change or error");
 	}
-	pk_backend_job_set_percentage (job, percentage);
 }
 
 static void
-pk_alpm_transaction_progress_cb (alpm_progress_t type, const gchar *target,
+pk_alpm_transaction_progress_cb (void *ctx, alpm_progress_t type, const gchar *target,
 					gint percent, gsize targets, gsize current)
 {
 	static gint recent = 101;
@@ -190,6 +185,34 @@ pk_alpm_transaction_progress_cb (alpm_progress_t type, const gchar *target,
 	PkBackendJob* job;
 	g_assert (pkalpm_current_job);
 	job = pkalpm_current_job;
+
+	if (g_strcmp0(target, "") == 0) {
+		switch (type) {
+			case ALPM_PROGRESS_KEYRING_START:
+				pk_backend_job_set_status(job, PK_STATUS_ENUM_SIG_CHECK);
+				pk_backend_job_set_percentage(job, percent);
+				break;
+			case ALPM_PROGRESS_INTEGRITY_START:
+				pk_backend_job_set_status(job, PK_STATUS_ENUM_SIG_CHECK);
+				pk_backend_job_set_percentage(job, percent);
+				break;
+			case ALPM_PROGRESS_LOAD_START:
+				pk_backend_job_set_status(job, PK_STATUS_ENUM_LOADING_CACHE);
+				pk_backend_job_set_percentage(job, percent);
+				break;
+			case ALPM_PROGRESS_DISKSPACE_START:
+				pk_backend_job_set_status(job, PK_STATUS_ENUM_TEST_COMMIT);
+				pk_backend_job_set_percentage(job, percent);
+				break;
+			case ALPM_PROGRESS_CONFLICTS_START:
+				pk_backend_job_set_status(job, PK_STATUS_ENUM_TEST_COMMIT);
+				pk_backend_job_set_percentage(job, percent);
+				break;
+			default:
+				syslog (LOG_DAEMON | LOG_WARNING, "unhandled progress type for transaction %d", type);
+				break;
+		}
+	}
 
 	/* TODO: remove block if/when this is made consistent upstream */
 	if (type == ALPM_PROGRESS_CONFLICTS_START ||
@@ -217,15 +240,10 @@ pk_alpm_transaction_progress_cb (alpm_progress_t type, const gchar *target,
 	case ALPM_PROGRESS_DOWNGRADE_START:
 	case ALPM_PROGRESS_REINSTALL_START:
 	case ALPM_PROGRESS_REMOVE_START:
-	case ALPM_PROGRESS_CONFLICTS_START:
-	case ALPM_PROGRESS_DISKSPACE_START:
-	case ALPM_PROGRESS_INTEGRITY_START:
-	case ALPM_PROGRESS_LOAD_START:
-	case ALPM_PROGRESS_KEYRING_START:
 		if (percent == recent)
 			break;
 
-		pk_backend_job_set_item_progress (job, target, PK_ROLE_ENUM_UNKNOWN, percent);
+		pk_backend_job_set_item_progress (job, target, PK_STATUS_ENUM_UNKNOWN, percent);
 		pk_backend_job_set_percentage (job, overall / targets);
 		recent = percent;
 
@@ -252,7 +270,9 @@ pk_alpm_install_ignorepkg (PkBackendJob *job, alpm_question_install_ignorepkg_t 
 		output = g_strdup_printf ("%s: was not ignored\n",
 					  alpm_pkg_get_name (q->pkg));
 		pk_alpm_transaction_output (output);
-
+#if  (!defined(__clang__)) && (__GNUC__ >= 7)
+		__attribute__ ((fallthrough)); /* let's be explicit about falltrhough */
+#endif
 	case PK_ROLE_ENUM_DOWNLOAD_PACKAGES:
 		q->install = 1;
 		break;
@@ -280,7 +300,7 @@ pk_alpm_select_provider (const alpm_list_t *providers,
 }
 
 static void
-pk_alpm_transaction_conv_cb (alpm_question_t *question)
+pk_alpm_transaction_conv_cb (void *ctx, alpm_question_t *question)
 {
 	PkBackendJob* job;
 	g_assert (pkalpm_current_job);
@@ -595,12 +615,6 @@ pk_alpm_transaction_setup (PkBackendJob *job)
 }
 
 static void
-pk_alpm_transaction_repackaging (PkBackendJob *job)
-{
-	pk_backend_job_set_status (job, PK_STATUS_ENUM_REPACKAGING);
-}
-
-static void
 pk_alpm_transaction_download (PkBackendJob *job)
 {
 	pk_backend_job_set_status (job, PK_STATUS_ENUM_DOWNLOAD);
@@ -626,7 +640,7 @@ pk_alpm_transaction_optdepend_removal (PkBackendJob *job, alpm_pkg_t *pkg,
 }
 
 static void
-pk_alpm_transaction_event_cb (alpm_event_t *event)
+pk_alpm_transaction_event_cb (void *ctx, alpm_event_t *event)
 {
 	PkBackendJob* job;
 	job = pkalpm_current_job;
@@ -694,7 +708,7 @@ pk_alpm_transaction_event_cb (alpm_event_t *event)
 		pk_alpm_transaction_output (((alpm_event_scriptlet_info_t *) event)->line);
 		break;
 	case ALPM_EVENT_KEY_DOWNLOAD_START:
-	case ALPM_EVENT_RETRIEVE_START:
+	case ALPM_EVENT_DB_RETRIEVE_START:
 		pk_alpm_transaction_download (job);
 		break;
 	case ALPM_EVENT_OPTDEP_REMOVAL:
@@ -723,12 +737,12 @@ pk_alpm_transaction_event_cb (alpm_event_t *event)
 	case ALPM_EVENT_LOAD_DONE:
 	case ALPM_EVENT_PACNEW_CREATED:
 	case ALPM_EVENT_PACSAVE_CREATED:
-	case ALPM_EVENT_PKGDOWNLOAD_DONE:
-	case ALPM_EVENT_PKGDOWNLOAD_FAILED:
-	case ALPM_EVENT_PKGDOWNLOAD_START:
+	case ALPM_EVENT_PKG_RETRIEVE_DONE:
+	case ALPM_EVENT_PKG_RETRIEVE_FAILED:
+	case ALPM_EVENT_PKG_RETRIEVE_START:
 	case ALPM_EVENT_RESOLVEDEPS_DONE:
-	case ALPM_EVENT_RETRIEVE_DONE:
-	case ALPM_EVENT_RETRIEVE_FAILED:
+	case ALPM_EVENT_DB_RETRIEVE_DONE:
+	case ALPM_EVENT_DB_RETRIEVE_FAILED:
 	case ALPM_EVENT_TRANSACTION_DONE:
 	case ALPM_EVENT_TRANSACTION_START:
 		/* ignored */
@@ -755,9 +769,9 @@ pk_alpm_transaction_initialize (PkBackendJob* job, alpm_transflag_t flags, const
 	PkBackendAlpmPrivate *priv = pk_backend_get_user_data (backend);
 
 	if (alpm_trans_init (priv->alpm, flags) < 0) {
-		alpm_errno_t errno = alpm_errno (priv->alpm);
-		g_set_error_literal (error, PK_ALPM_ERROR, errno,
-				     alpm_strerror (errno));
+		alpm_errno_t alpm_err = alpm_errno (priv->alpm);
+		g_set_error_literal (error, PK_ALPM_ERROR, alpm_err,
+				     alpm_strerror (alpm_err));
 		return FALSE;
 	}
 
@@ -765,12 +779,11 @@ pk_alpm_transaction_initialize (PkBackendJob* job, alpm_transflag_t flags, const
 	pkalpm_current_job = job;
 	pkalpm_dirname = dirname;
 
-	alpm_option_set_eventcb (priv->alpm, pk_alpm_transaction_event_cb);
-	alpm_option_set_questioncb (priv->alpm, pk_alpm_transaction_conv_cb);
-	alpm_option_set_progresscb (priv->alpm, pk_alpm_transaction_progress_cb);
+	alpm_option_set_eventcb (priv->alpm, pk_alpm_transaction_event_cb, NULL);
+	alpm_option_set_questioncb (priv->alpm, pk_alpm_transaction_conv_cb, NULL);
+	alpm_option_set_progresscb (priv->alpm, pk_alpm_transaction_progress_cb, NULL);
 
-	alpm_option_set_dlcb (priv->alpm, pk_alpm_transaction_dlcb);
-	alpm_option_set_totaldlcb (priv->alpm, pk_alpm_transaction_totaldlcb);
+	alpm_option_set_dlcb (priv->alpm, pk_alpm_transaction_dlcb, NULL);
 
 	g_cancellable_connect (pk_backend_job_get_cancellable (job),
 			       G_CALLBACK (pk_alpm_transaction_cancelled_cb),
@@ -956,13 +969,13 @@ pk_alpm_transaction_simulate (PkBackendJob *job, GError **error)
 	}
 
 	if (prefix != NULL) {
-		alpm_errno_t errno = alpm_errno (priv->alpm);
-		g_set_error (error, PK_ALPM_ERROR, errno, "%s: %s", prefix,
-			     alpm_strerror (errno));
+		alpm_errno_t alpm_err = alpm_errno (priv->alpm);
+		g_set_error (error, PK_ALPM_ERROR, alpm_err, "%s: %s", prefix,
+			     alpm_strerror (alpm_err));
 	} else {
-		alpm_errno_t errno = alpm_errno (priv->alpm);
-		g_set_error_literal (error, PK_ALPM_ERROR, errno,
-				     alpm_strerror (errno));
+		alpm_errno_t alpm_err = alpm_errno (priv->alpm);
+		g_set_error_literal (error, PK_ALPM_ERROR, alpm_err,
+				     alpm_strerror (alpm_err));
 	}
 
 	return FALSE;
@@ -1066,13 +1079,13 @@ pk_alpm_transaction_commit (PkBackendJob *job, GError **error)
 	}
 
 	if (prefix != NULL) {
-		alpm_errno_t errno = alpm_errno (priv->alpm);
-		g_set_error (error, PK_ALPM_ERROR, errno, "%s: %s", prefix,
-			     alpm_strerror (errno));
+		alpm_errno_t alpm_err = alpm_errno (priv->alpm);
+		g_set_error (error, PK_ALPM_ERROR, alpm_err, "%s: %s", prefix,
+			     alpm_strerror (alpm_err));
 	} else {
-		alpm_errno_t errno = alpm_errno (priv->alpm);
-		g_set_error_literal (error, PK_ALPM_ERROR, errno,
-				     alpm_strerror (errno));
+		alpm_errno_t alpm_err = alpm_errno (priv->alpm);
+		g_set_error_literal (error, PK_ALPM_ERROR, alpm_err,
+				     alpm_strerror (alpm_err));
 	}
 
 	return FALSE;
@@ -1084,12 +1097,12 @@ pk_alpm_transaction_end (PkBackendJob *job, GError **error)
 	PkBackend *backend = pk_backend_job_get_backend (job);
 	PkBackendAlpmPrivate *priv = pk_backend_get_user_data (backend);
 
-	alpm_option_set_eventcb (priv->alpm, NULL);
-	alpm_option_set_questioncb (priv->alpm, NULL);
-	alpm_option_set_progresscb (priv->alpm, NULL);
+	alpm_option_set_eventcb (priv->alpm, NULL, NULL);
+	alpm_option_set_questioncb (priv->alpm, NULL, NULL);
+	alpm_option_set_progresscb (priv->alpm, NULL, NULL);
 
-	alpm_option_set_dlcb (priv->alpm, NULL);
-	alpm_option_set_totaldlcb (priv->alpm, NULL);
+	alpm_option_set_dlcb (priv->alpm, NULL, NULL);
+//	alpm_option_set_totaldlcb (priv->alpm, NULLa;
 
 	if (dpkg != NULL)
 		pk_alpm_transaction_download_end (job);
@@ -1100,9 +1113,9 @@ pk_alpm_transaction_end (PkBackendJob *job, GError **error)
 	pkalpm_current_job = NULL;
 
 	if (alpm_trans_release (priv->alpm) < 0) {
-		alpm_errno_t errno = alpm_errno (priv->alpm);
-		g_set_error_literal (error, PK_ALPM_ERROR, errno,
-				     alpm_strerror (errno));
+		alpm_errno_t alpm_err = alpm_errno (priv->alpm);
+		g_set_error_literal (error, PK_ALPM_ERROR, alpm_err,
+				     alpm_strerror (alpm_err));
 		return FALSE;
 	}
 
