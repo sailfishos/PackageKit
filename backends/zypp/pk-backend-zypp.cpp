@@ -192,8 +192,8 @@ guint _dl_count = 0;
 guint _dl_progress = 0;
 guint _dl_status = 0;
 
-static const filesystem::Pathname REGULAR_CACHE_PATH("/home/.zypp-cache");
-static const filesystem::Pathname DIST_UPGRADE_CACHE_PATH("/home/.pk-zypp-dist-upgrade-cache");
+static const zypp::filesystem::Pathname REGULAR_CACHE_PATH("/home/.zypp-cache");
+static const zypp::filesystem::Pathname DIST_UPGRADE_CACHE_PATH("/home/.pk-zypp-dist-upgrade-cache");
 
 // Forward declaration
 static void
@@ -1068,7 +1068,7 @@ zypp_handle_broken_rpmdb (ZYpp::Ptr zypp, const Exception &e)
 		LOG << "RPM DB recovery successful." << std::endl;
 
 		try {
-			filesystem::Pathname pathname("/");
+			zypp::filesystem::Pathname pathname("/");
 			zypp->initializeTarget (pathname);
 			return true;
 		}
@@ -1132,7 +1132,7 @@ ZyppJob::get_zypp()
 
 		if (!initialized) {
 			try {
-				filesystem::Pathname pathname("/");
+				zypp::filesystem::Pathname pathname("/");
 				zypp->initializeTarget (pathname);
 			} catch (const Exception &e) {
 				// Try to recover from a broken RPM database
@@ -2362,7 +2362,7 @@ zypp_refresh_cache (PkBackendJob *job, ZYpp::Ptr zypp, gboolean force)
 
 	if (zypp == NULL)
 		return  FALSE;
-	filesystem::Pathname pathname("/");
+	zypp::filesystem::Pathname pathname("/");
 
 	bool poolIsClean = sat::Pool::instance ().reposEmpty ();
 	// Erase and reload all if pool is too holey (densyity [100: good | 0 bad])
@@ -2553,7 +2553,7 @@ pk_backend_destroy (PkBackend *backend)
 {
 	g_debug ("zypp_backend_destroy");
 
-	filesystem::recursive_rmdir (zypp::myTmpDir ());
+	zypp::filesystem::recursive_rmdir (zypp::myTmpDir ());
 
 	g_free (_repoName);
 	delete priv;
@@ -3232,7 +3232,7 @@ backend_install_files_thread (PkBackendJob *job, GVariant *params, gpointer user
 	}
 
 	// create a temporary directory
-	filesystem::TmpDir tmpDir;
+	zypp::filesystem::TmpDir tmpDir;
 	if (tmpDir == NULL) {
 		zypp_backend_finished_error (
 			job, PK_ERROR_ENUM_LOCAL_INSTALL_FAILED,
@@ -3264,7 +3264,7 @@ backend_install_files_thread (PkBackendJob *job, GVariant *params, gpointer user
 
 		// copy the rpm into tmpdir
 		string tempDest = tmpDir.path ().asString () + "/" + rpmHeader->tag_name () + ".rpm";
-		if (filesystem::copy (full_paths[i], tempDest) != 0) {
+		if (zypp::filesystem::copy (full_paths[i], tempDest) != 0) {
 			zypp_backend_finished_error (
 				job, PK_ERROR_ENUM_LOCAL_INSTALL_FAILED,
 				"Could not copy the rpm-file into the temp-dir");
@@ -4544,9 +4544,9 @@ backend_upgrade_system_thread (PkBackendJob *job,
 	if (sync_cache) {
 		LOG  << "Updating regular zypp cache" << std::endl;
 		// Copy, not move, because it may be called repeatedly!
-		if (filesystem::erase(REGULAR_CACHE_PATH) != 0
-		    || filesystem::mkdir(REGULAR_CACHE_PATH) != 0
-		    || filesystem::copy_dir_content(DIST_UPGRADE_CACHE_PATH, REGULAR_CACHE_PATH) != 0) {
+		if (zypp::filesystem::erase(REGULAR_CACHE_PATH) != 0
+		    || zypp::filesystem::mkdir(REGULAR_CACHE_PATH) != 0
+		    || zypp::filesystem::copy_dir_content(DIST_UPGRADE_CACHE_PATH, REGULAR_CACHE_PATH) != 0) {
 			LOG << "Failed to update the regular zypp cache" << std::endl;
 		}
 	}
@@ -4876,7 +4876,7 @@ backend_download_packages_thread (PkBackendJob *job, GVariant *params, gpointer 
 				return;
 			}
 
-			filesystem::Pathname repo_dir = solvable.repository().info().packagesPath();
+			zypp::filesystem::Pathname repo_dir = solvable.repository().info().packagesPath();
 			int64_t freeSpace = get_free_disk_space(repo_dir.c_str());
 			int64_t downloadSize = make<ResObject>(solvable)->downloadSize();
 			if (downloadSize > freeSpace) {
@@ -4902,7 +4902,7 @@ backend_download_packages_thread (PkBackendJob *job, GVariant *params, gpointer 
 			// be sure it ends with /
 			target += "/";
 			target += tmp_file->basename();
-			filesystem::hardlinkCopy(tmp_file, target);
+			zypp::filesystem::hardlinkCopy(tmp_file, target);
 			const gchar *to_strv[] = { NULL, NULL };
 			to_strv[0] =  target.c_str();
 			pk_backend_job_files (job, package_ids[i],(gchar **) to_strv);
