@@ -1,0 +1,2 @@
+PACKAGEKIT_ARGS="--keep-environment"
+ZYPPTMPDIR="/home/.zypp-tmp"
