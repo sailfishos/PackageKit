@@ -11,6 +11,7 @@ Source0:   http://www.freedesktop.org/software/PackageKit/releases/%{name}-%{ver
 Source100: rpm-db-clean.service
 Source101: pk-rpm-db-clean
 Source102: packagekit-zypp-override.conf
+Source103: packagekit.sysconfig
 
 Requires: PackageKit-zypp = %{version}-%{release}
 Requires: shared-mime-info
@@ -101,6 +102,9 @@ using PackageKit.
 # Create cache dir
 mkdir -p %{buildroot}%{_localstatedir}/cache/PackageKit
 
+# Environment file for libzypp
+install -D -m 0644 %{SOURCE103} %{buildroot}/%{_sysconfdir}/sysconfig/packagekit
+
 # delete unneeded things
 rm -r ${RPM_BUILD_ROOT}/%{_datadir}/PackageKit/helpers/test_spawn
 rm ${RPM_BUILD_ROOT}/%{_libdir}/packagekit-backend/libpk_backend_test_*.so
@@ -159,6 +163,7 @@ update-mime-database %{_datadir}/mime &> /dev/null || :
 %dir %{_libdir}/packagekit-backend
 %config %{_sysconfdir}/PackageKit/*.conf
 %config %{_sysconfdir}/dbus-1/system.d/*
+%config %{_sysconfdir}/sysconfig/packagekit
 %{_datadir}/polkit-1/actions/*.policy
 %{_datadir}/polkit-1/rules.d/org.freedesktop.packagekit.rules
 # applies only to some desktop distributions
