@@ -1111,6 +1111,7 @@ ZyppJob::get_zypp()
 	} else {
 		targetRoot.assign(tmp, tmp_len);
 	}
+	free(cachePath);
 
 	try {
 		zypp = ZYppFactory::instance ().getZYpp ();
