@@ -1111,6 +1111,7 @@ ZyppJob::get_zypp()
 	} else {
 		targetRoot.assign(tmp, tmp_len);
 	}
+	free(cachePath);
 
 	try {
 		zypp = ZYppFactory::instance ().getZYpp ();
@@ -1722,18 +1723,15 @@ zypp_emit_filtered_packages_in_list (PkBackendJob *job, PkBitfield filters, cons
 		}
 
 		for (sat_it_t it = available.begin (); it != available.end (); ++it) {
-			bool match = false;
-
-			for (sat_it_t i = installed.begin (); !match && i != installed.end (); i++) {
-				match = it->sameNVRA (*i) &&
+			for (sat_it_t it2 = installed.begin (); it2 != installed.end (); it2++) {
+				if (it->sameNVRA (*it2) &&
 					!(!isKind<SrcPackage>(*it) ^
-					  !isKind<SrcPackage>(*i));
-			}
-
-			if (match) {
-				zypp_backend_package (job, PK_INFO_ENUM_INSTALLED, *it,
-						      make<ResObject>(*it)->summary().c_str(), true);
-				installed.erase (find (installed.begin (), installed.end(), *it));
+					  !isKind<SrcPackage>(*it2))) {
+					zypp_backend_package (job, PK_INFO_ENUM_INSTALLED, *it,
+							      make<ResObject>(*it)->summary().c_str(), true);
+					installed.erase (it2);
+					break;
+				}
 			}
 		}
 
