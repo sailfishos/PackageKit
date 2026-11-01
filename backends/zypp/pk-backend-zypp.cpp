@@ -25,6 +25,7 @@
 
 #include "config.h"
 
+#include <cerrno>
 #include <iterator>
 #include <list>
 #include <map>
@@ -35,6 +36,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
+#include <sys/stat.h>
 #include <sys/vfs.h>
 #include <unistd.h>
 #include <vector>
@@ -104,6 +106,82 @@ using zypp::filesystem::PathInfo;
 #define ZYPP_BASE_LOGGER_LOGGROUP "packagekit-zypp"
 
 #define LOG std::cout << "[" ZYPP_BASE_LOGGER_LOGGROUP "] "
+
+/* Backend-internal v1 interface. commit_policy points to the existing
+ * zypp::ZYppCommitPolicy. The module uses the same libzypp ABI as the backend.
+ * prepare returns 0 to continue, 1 to deny, or 2 for a technical failure.
+ * It must not throw. finish releases any state even when prepare fails.
+ * Error strings are allocated with g_strdup; the caller releases them.
+ * Neither entry point may execute an RPM transaction itself.
+ */
+struct PkZyppPreCommitContext {
+	guint size;
+	gpointer commit_policy;
+	gpointer user_data;
+	gboolean (*cancelled)(gpointer user_data);
+};
+typedef int (*PkZyppPreCommitPrepare)(const struct PkZyppPreCommitContext *,
+				  gpointer *state, gchar **reason);
+typedef void (*PkZyppPreCommitFinish)(gpointer state);
+/* Exported C symbols: pk_zypp_pre_commit_prepare_v1, pk_zypp_pre_commit_finish_v1.
+ * The library stays loaded until finish has run, including on commit exceptions.
+ */
+
+class ZyppPreCommitHook {
+public:
+	~ZyppPreCommitHook();
+	int prepare(PkRoleEnum role, PkBitfield flags,
+		    const PkZyppPreCommitContext &context, gchar **reason,
+		    const char *path = PK_ZYPP_PRE_COMMIT_PATH);
+	static bool applies(PkRoleEnum role, PkBitfield flags);
+private:
+	GModule *module = nullptr;
+	PkZyppPreCommitFinish finish = nullptr;
+	gpointer state = nullptr;
+};
+
+bool ZyppPreCommitHook::applies(PkRoleEnum role, PkBitfield flags)
+{
+	return (role == PK_ROLE_ENUM_INSTALL_FILES || role == PK_ROLE_ENUM_INSTALL_PACKAGES)
+		&& !pk_bitfield_contain(flags, PK_TRANSACTION_FLAG_ENUM_SIMULATE)
+		&& !pk_bitfield_contain(flags, PK_TRANSACTION_FLAG_ENUM_ONLY_DOWNLOAD);
+}
+
+int ZyppPreCommitHook::prepare(PkRoleEnum role, PkBitfield flags,
+			   const PkZyppPreCommitContext &context,
+			   gchar **reason, const char *path)
+{
+	// Other roles do not even inspect the optional module's path.
+	if (!applies(role, flags)) return 0;
+	GStatBuf st;
+	if (g_lstat(path, &st)) {
+		if (errno == ENOENT) return 0;
+		*reason = g_strdup("Cannot inspect pre-commit module");
+		return 2;
+	}
+	if (!S_ISREG(st.st_mode)) {
+		*reason = g_strdup("Invalid pre-commit module file");
+		return 2;
+	}
+	module = g_module_open(path, G_MODULE_BIND_LOCAL);
+	PkZyppPreCommitPrepare prepare = nullptr;
+	if (!module || !g_module_symbol(module, "pk_zypp_pre_commit_prepare_v1", (gpointer *)&prepare)
+			|| !g_module_symbol(module, "pk_zypp_pre_commit_finish_v1", (gpointer *)&finish)) {
+		*reason = g_strdup("Cannot load pre-commit module interface");
+		return 2;
+	}
+	const int result = prepare(&context, &state, reason);
+	if (result == 0 || result == 1 || result == 2) return result;
+	g_free(*reason);
+	*reason = g_strdup("Invalid pre-commit module result");
+	return 2;
+}
+
+ZyppPreCommitHook::~ZyppPreCommitHook()
+{
+	if (state && finish) finish(state);
+	if (module) g_module_close(module);
+}
 
 typedef enum {
         INSTALL,
@@ -2280,6 +2358,20 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo
 			goto exit;
 		}
 
+		ZyppPreCommitHook preCommit;
+		PkZyppPreCommitContext context = {sizeof(context), &policy, job,
+			[](gpointer data) -> gboolean {
+				return pk_backend_job_is_cancelled(static_cast<PkBackendJob *>(data));
+			}};
+		g_autofree gchar *hookReason = nullptr;
+		const int hookResult = preCommit.prepare(pk_backend_job_get_role(job), transaction_flags,
+		                                        context, &hookReason);
+		if (hookResult) {
+			pk_backend_job_error_code(job,
+				hookResult == 1 ? PK_ERROR_ENUM_NOT_AUTHORIZED : PK_ERROR_ENUM_TRANSACTION_ERROR,
+				"Pre-commit hook rejected transaction: %s", hookReason ? hookReason : "No reason supplied");
+			goto exit;
+		}
 		ZYppCommitResult result = zypp->commit (policy);
 
 		bool worked = result.allDone();
