@@ -2105,6 +2105,28 @@ zypp_send_size_details (PkBackendJob *job, const char *name, int64_t bytes)
 	                        bytes);
 }
 
+static bool
+zypp_commit_install (PkBackendJob *job, ZYpp::Ptr zypp, ZYppCommitPolicy &policy,
+                     PkBitfield transaction_flags, ZYppCommitResult &result)
+{
+	ZyppPreCommitHook preCommit;
+	PkZyppPreCommitContext context = {sizeof(context), &policy, job,
+		[](gpointer data) -> gboolean {
+			return pk_backend_job_is_cancelled(static_cast<PkBackendJob *>(data));
+		}};
+	g_autofree gchar *hookReason = nullptr;
+	const int hookResult = preCommit.prepare(pk_backend_job_get_role(job), transaction_flags,
+	                                        context, &hookReason);
+	if (hookResult) {
+		pk_backend_job_error_code(job,
+			hookResult == 1 ? PK_ERROR_ENUM_NOT_AUTHORIZED : PK_ERROR_ENUM_TRANSACTION_ERROR,
+			"Pre-commit hook rejected transaction: %s", hookReason ? hookReason : "No reason supplied");
+		return false;
+	}
+	result = zypp->commit (policy);
+	return true;
+}
+
 /**
   * simulate, or perform changes in pool to the system
   */
@@ -2358,21 +2380,14 @@ zypp_perform_execution (PkBackendJob *job, ZYpp::Ptr zypp, PerformType type, gbo
 			goto exit;
 		}
 
-		ZyppPreCommitHook preCommit;
-		PkZyppPreCommitContext context = {sizeof(context), &policy, job,
-			[](gpointer data) -> gboolean {
-				return pk_backend_job_is_cancelled(static_cast<PkBackendJob *>(data));
-			}};
-		g_autofree gchar *hookReason = nullptr;
-		const int hookResult = preCommit.prepare(pk_backend_job_get_role(job), transaction_flags,
-		                                        context, &hookReason);
-		if (hookResult) {
-			pk_backend_job_error_code(job,
-				hookResult == 1 ? PK_ERROR_ENUM_NOT_AUTHORIZED : PK_ERROR_ENUM_TRANSACTION_ERROR,
-				"Pre-commit hook rejected transaction: %s", hookReason ? hookReason : "No reason supplied");
-			goto exit;
+		ZYppCommitResult result;
+		// Updates and system upgrades use the original commit path without hook calls.
+		if (type == INSTALL && ZyppPreCommitHook::applies(pk_backend_job_get_role(job), transaction_flags)) {
+			if (!zypp_commit_install (job, zypp, policy, transaction_flags, result))
+				goto exit;
+		} else {
+			result = zypp->commit (policy);
 		}
-		ZYppCommitResult result = zypp->commit (policy);
 
 		bool worked = result.allDone();
 		if (only_download)
