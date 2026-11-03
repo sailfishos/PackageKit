@@ -82,6 +82,7 @@ gboolean	 pk_backend_unload			(PkBackend	*backend)
 
 gboolean	 pk_backend_is_implemented		(PkBackend	*backend,
 							 PkRoleEnum	 role);
+gboolean	 pk_backend_supports_checked_install	(PkBackend	*backend);
 gchar		*pk_backend_get_accepted_eula_string	(PkBackend	*backend);
 void		 pk_backend_repo_list_changed		(PkBackend      *backend);
 void		 pk_backend_installed_db_changed	(PkBackend      *backend);
@@ -177,6 +178,12 @@ void		 pk_backend_install_files		(PkBackend	*backend,
 							 PkBackendJob	*job,
 							 PkBitfield	 transaction_flags,
 							 gchar		**full_paths);
+void		 pk_backend_install_files_with_checksums
+							(PkBackend	*backend,
+							 PkBackendJob	*job,
+							 PkBitfield	 transaction_flags,
+							 gchar		**full_paths,
+							 gchar		**checksums);
 void		 pk_backend_refresh_cache		(PkBackend	*backend,
 							 PkBackendJob	*job,
 							 gboolean	 force);
