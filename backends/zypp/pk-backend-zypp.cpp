@@ -3212,18 +3212,41 @@ pk_backend_get_updates (PkBackend *backend, PkBackendJob *job, PkBitfield filter
 	zypp_backend_job_thread_create (job, backend_get_updates_thread, NULL, NULL);
 }
 
+static bool
+checked_file_digest (const string &path, const gchar *expected)
+{
+	FILE *file = fopen (path.c_str (), "rb");
+	if (file == NULL)
+		return false;
+
+	GChecksum *checksum = g_checksum_new (G_CHECKSUM_SHA256);
+	guchar buffer[64 * 1024];
+	size_t bytes;
+	while ((bytes = fread (buffer, 1, sizeof buffer, file)) > 0)
+		g_checksum_update (checksum, buffer, bytes);
+	const gchar *actual = g_checksum_get_string (checksum);
+	const bool result = !ferror (file) && actual != NULL
+			&& g_ascii_strcasecmp (actual, expected) == 0;
+	const bool closed = fclose (file) == 0;
+	g_checksum_free (checksum);
+	return result && closed;
+}
+
 static void
-backend_install_files_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
+backend_install_files_thread_impl (PkBackendJob *job, GVariant *params, gboolean checked)
 {
 	RepoManager manager;
 	ZyppJob zjob(job);
 	ZYpp::Ptr zypp = zjob.get_zypp();
 
 	PkBitfield transaction_flags;
-	gchar **full_paths;
-	g_variant_get (params, "(t^a&s)",
-		       &transaction_flags,
-		       &full_paths);
+	g_autofree gchar **full_paths = NULL;
+	g_autofree gchar **checksums = NULL;
+	if (checked)
+		g_variant_get (params, "(t^a&s^a&s)", &transaction_flags,
+			       &full_paths, &checksums);
+	else
+		g_variant_get (params, "(t^a&s)", &transaction_flags, &full_paths);
 	
 	if (zypp == NULL){
 		return;
@@ -3239,6 +3262,30 @@ backend_install_files_thread (PkBackendJob *job, GVariant *params, gpointer user
 	}
 
 	for (guint i = 0; full_paths[i]; i++) {
+		if (checked) {
+			std::ostringstream checkedName;
+			checkedName << tmpDir.path ().asString () << "/package-" << i << ".rpm";
+			const string checkedDest = checkedName.str ();
+			if (zypp::filesystem::copy (full_paths[i], checkedDest) != 0) {
+				zypp_backend_finished_error (job, PK_ERROR_ENUM_LOCAL_INSTALL_FAILED,
+							      "Could not stage the rpm-file");
+				return;
+			}
+			if (!checked_file_digest (checkedDest, checksums[i])) {
+				zypp_backend_finished_error (job, PK_ERROR_ENUM_LOCAL_INSTALL_FAILED,
+							      "staged rpm checksum does not match approval");
+				return;
+			}
+			target::rpm::RpmHeader::constPtr stagedHeader =
+				target::rpm::RpmHeader::readPackage (Pathname (checkedDest), target::rpm::RpmHeader::NOSIGNATURE);
+			if (stagedHeader == NULL || !stagedHeader->tag_arch().compatibleWith (
+					ZConfig::instance().systemArchitecture ())) {
+				zypp_backend_finished_error (job, PK_ERROR_ENUM_LOCAL_INSTALL_FAILED,
+							      "staged file is not a compatible RPM");
+				return;
+			}
+			continue;
+		}
 
 		// check if file is really a rpm
 		Pathname rpmPath (full_paths[i]);
@@ -3319,6 +3366,18 @@ backend_install_files_thread (PkBackendJob *job, GVariant *params, gpointer user
 	}
 }
 
+static void
+backend_install_files_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
+{
+	backend_install_files_thread_impl (job, params, FALSE);
+}
+
+static void
+backend_install_files_with_checksums_thread (PkBackendJob *job, GVariant *params, gpointer user_data)
+{
+	backend_install_files_thread_impl (job, params, TRUE);
+}
+
 /**
   * pk_backend_install_files
   */
@@ -3326,6 +3385,14 @@ void
 pk_backend_install_files (PkBackend *backend, PkBackendJob *job, PkBitfield transaction_flags, gchar **full_paths)
 {
 	zypp_backend_job_thread_create (job, backend_install_files_thread, NULL, NULL);
+}
+
+void
+pk_backend_install_files_with_checksums (PkBackend *backend, PkBackendJob *job,
+						 PkBitfield transaction_flags, gchar **full_paths,
+						 gchar **checksums)
+{
+	zypp_backend_job_thread_create (job, backend_install_files_with_checksums_thread, NULL, NULL);
 }
 
 static void
