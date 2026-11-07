@@ -2420,7 +2420,6 @@ zypp_refresh_cache (PkBackendJob *job, ZYpp::Ptr zypp, gboolean force)
 
 	int i = 1;
 	int num_of_repos = repos.size ();
-	gchar *repo_messages = NULL;
 
 	for (list <RepoInfo>::iterator it = repos.begin(); it != repos.end(); ++it, i++) {
 		RepoInfo repo (*it);
@@ -2433,7 +2432,7 @@ zypp_refresh_cache (PkBackendJob *job, ZYpp::Ptr zypp, gboolean force)
 		if (!zypp_is_valid_repo (job, repo))
 			return FALSE;
 		if (pk_backend_job_get_is_error_set (job))
-			break;
+			return FALSE;
 
 		// skip disabled repos
 		if (repo.enabled () == false)
@@ -2457,30 +2456,26 @@ zypp_refresh_cache (PkBackendJob *job, ZYpp::Ptr zypp, gboolean force)
 		}
 
 		try {
-			// Refreshing metadata
+			// A partial refresh must not be treated as success. The solver
+			// would otherwise upgrade from a mixture of new and stale repos.
 			g_free (_repoName);
 			_repoName = g_strdup (repo.alias ().c_str ());
-			zypp_refresh_meta_and_cache (manager, repo, force);
-		} catch (const Exception &ex) {
-			if (repo_messages == NULL) {
-				repo_messages = g_strdup_printf ("%s: %s%s", repo.alias ().c_str (), ex.asUserString ().c_str (), "\n");
-			} else {
-				repo_messages = g_strdup_printf ("%s%s: %s%s", repo_messages, repo.alias ().c_str (), ex.asUserString ().c_str (), "\n");
+			if (!zypp_refresh_meta_and_cache (manager, repo, force)) {
+				pk_backend_job_error_code (job, PK_ERROR_ENUM_REPO_NOT_AVAILABLE,
+						"Failed to refresh repository %s", repo.alias ().c_str ());
+				return FALSE;
 			}
-			if (repo_messages == NULL || !g_utf8_validate (repo_messages, -1, NULL))
-				repo_messages = g_strdup ("A repository could not be refreshed");
-			g_strdelimit (repo_messages, "\\\f\r\t", ' ');
-			continue;
+		} catch (const Exception &ex) {
+			pk_backend_job_error_code (job, PK_ERROR_ENUM_REPO_NOT_AVAILABLE,
+					"%s: %s", repo.alias ().c_str (), ex.asUserString ().c_str ());
+			return FALSE;
 		}
 
 		// Update the percentage completed
 		pk_backend_job_set_percentage (job, i >= num_of_repos ? 100 : (100 * i) / num_of_repos);
 	}
-	if (repo_messages != NULL)
-		g_printf("%s", repo_messages);
 
 	pk_backend_job_set_percentage (job, 100);
-	g_free (repo_messages);
 	return TRUE;
 }
 
@@ -3091,13 +3086,14 @@ backend_refresh_cache_thread (PkBackendJob *job, GVariant *params, gpointer user
 	ZYpp::Ptr zypp = zjob.get_zypp();
 
 	if (zypp) {
-		zypp_refresh_cache (job, zypp, TRUE);
-
-		if (zjob.isCancelled()) {
-			LOG << "Package refresh was cancelled on user request" << std::endl;
-			pk_backend_job_error_code (job,
-					PK_ERROR_ENUM_TRANSACTION_CANCELLED,
-					"Refresh was cancelled");
+		if (!zypp_refresh_cache (job, zypp, TRUE)) {
+			if (zjob.isCancelled() && !pk_backend_job_get_is_error_set (job)) {
+				LOG << "Package refresh was cancelled on user request" << std::endl;
+				pk_backend_job_error_code (job,
+						PK_ERROR_ENUM_TRANSACTION_CANCELLED,
+						"Refresh was cancelled");
+			}
+			return;
 		}
 	}
 }
