@@ -655,6 +655,17 @@ struct RepoReportReceiver : public zypp::callback::ReceiveReport<zypp::repo::Rep
 
 struct DownloadProgressReportReceiver : public zypp::callback::ReceiveReport<zypp::repo::DownloadResolvableReport>, ZyppBackendReceiver
 {
+	virtual void infoInCache (zypp::Resolvable::constPtr resolvable, const zypp::Pathname &)
+	{
+		// Cached packages have no start/progress/finish callbacks.
+		gchar *package_id = zypp_build_package_id_from_resolvable (resolvable->satSolvable ());
+		if (package_id != NULL) {
+			pk_backend_job_set_item_progress (_job, package_id, PK_STATUS_ENUM_DOWNLOAD, 100);
+			g_free (package_id);
+		}
+		zypp_backend_download_finished (_job);
+	}
+
 	virtual void start (zypp::Resolvable::constPtr resolvable, const zypp::Url &file)
 	{
 		MIL << resolvable << " " << file << std::endl;
