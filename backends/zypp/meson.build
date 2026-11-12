@@ -19,6 +19,7 @@ shared_module(
   ],
   cpp_args: [
     '-DPK_COMPILATION=1',
+    '-DPK_ZYPP_PRE_COMMIT_PATH="@0@"'.format(join_paths(get_option('prefix'), get_option('libdir'), 'packagekit-zypp', 'pre-commit.so')),
     '-DG_LOG_DOMAIN="PackageKit-Zypp"',
     '-Wall',
     '-Woverloaded-virtual',
