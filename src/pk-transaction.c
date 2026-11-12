@@ -123,6 +123,7 @@ struct PkTransactionPrivate
 	gchar			**cached_package_ids;
 	gchar			*cached_transaction_id;
 	gchar			**cached_full_paths;
+	gchar			**cached_full_path_checksums;
 	PkBitfield		 cached_filters;
 	gchar			**cached_values;
 	gchar			*cached_repo_id;
@@ -1876,10 +1877,16 @@ pk_transaction_run (PkTransaction *transaction)
 					     priv->cached_package_ids);
 		break;
 	case PK_ROLE_ENUM_INSTALL_FILES:
-		pk_backend_install_files (priv->backend,
-					  priv->job,
-					  priv->cached_transaction_flags,
-					  priv->cached_full_paths);
+		if (priv->cached_full_path_checksums != NULL)
+			pk_backend_install_files_with_checksums (priv->backend,
+								  priv->job,
+								  priv->cached_transaction_flags,
+								  priv->cached_full_paths,
+								  priv->cached_full_path_checksums);
+		else
+			pk_backend_install_files (priv->backend, priv->job,
+						  priv->cached_transaction_flags,
+						  priv->cached_full_paths);
 		break;
 	case PK_ROLE_ENUM_INSTALL_SIGNATURE:
 		pk_backend_install_signature (priv->backend,
@@ -3612,7 +3619,8 @@ pk_transaction_is_supported_content_type (PkTransaction *transaction,
 static void
 pk_transaction_install_files (PkTransaction *transaction,
 			      GVariant *params,
-			      GDBusMethodInvocation *context)
+			      GDBusMethodInvocation *context,
+			      gboolean checked)
 {
 	gboolean ret;
 	GError *error_local = NULL;
@@ -3622,15 +3630,18 @@ pk_transaction_install_files (PkTransaction *transaction,
 	g_autoptr(GError) error = NULL;
 	g_autofree gchar *content_type = NULL;
 	g_autofree gchar **full_paths = NULL;
+	g_autofree gchar **checksums = NULL;
 	g_autofree gchar *full_paths_temp = NULL;
 	g_autofree gchar *transaction_flags_temp = NULL;
 
 	g_return_if_fail (PK_IS_TRANSACTION (transaction));
 	g_return_if_fail (transaction->priv->tid != NULL);
 
-	g_variant_get (params, "(t^a&s)",
-		       &transaction_flags,
-		       &full_paths);
+	if (checked)
+		g_variant_get (params, "(t^a&s^a&s)", &transaction_flags,
+			       &full_paths, &checksums);
+	else
+		g_variant_get (params, "(t^a&s)", &transaction_flags, &full_paths);
 
 	full_paths_temp = pk_package_ids_to_string (full_paths);
 	transaction_flags_temp = pk_transaction_flag_bitfield_to_string (transaction_flags);
@@ -3647,10 +3658,29 @@ pk_transaction_install_files (PkTransaction *transaction,
 		pk_transaction_set_state (transaction, PK_TRANSACTION_STATE_ERROR);
 		goto out;
 	}
+	if (checked && !pk_backend_supports_checked_install (transaction->priv->backend)) {
+		g_set_error (&error, PK_TRANSACTION_ERROR, PK_TRANSACTION_ERROR_NOT_SUPPORTED,
+			     "checked file installation is not supported by this backend");
+		pk_transaction_set_state (transaction, PK_TRANSACTION_STATE_ERROR);
+		goto out;
+	}
 
 	/* check all files exists and are valid */
 	length = g_strv_length (full_paths);
+	if (checked && (length == 0 || g_strv_length (checksums) != length)) {
+		g_set_error (&error, PK_TRANSACTION_ERROR, PK_TRANSACTION_ERROR_INPUT_INVALID,
+			     "the number of checksums must match the package files");
+		pk_transaction_set_state (transaction, PK_TRANSACTION_STATE_ERROR);
+		goto out;
+	}
 	for (i = 0; i < length; i++) {
+		if (checked && (strlen (checksums[i]) != 64 ||
+				strspn (checksums[i], "0123456789abcdefABCDEF") != 64)) {
+			g_set_error (&error, PK_TRANSACTION_ERROR, PK_TRANSACTION_ERROR_INPUT_INVALID,
+				     "invalid SHA-256 checksum for %s", full_paths[i]);
+			pk_transaction_set_state (transaction, PK_TRANSACTION_STATE_ERROR);
+			goto out;
+		}
 		/* exists */
 		ret = g_file_test (full_paths[i], G_FILE_TEST_EXISTS);
 		if (!ret) {
@@ -3688,6 +3718,8 @@ pk_transaction_install_files (PkTransaction *transaction,
 	/* save so we can run later */
 	transaction->priv->cached_transaction_flags = transaction_flags;
 	transaction->priv->cached_full_paths = g_strdupv (full_paths);
+	if (checked)
+		transaction->priv->cached_full_path_checksums = g_strdupv (checksums);
 	pk_transaction_set_role (transaction, PK_ROLE_ENUM_INSTALL_FILES);
 
 	/* this changed */
@@ -5047,7 +5079,11 @@ pk_transaction_method_call (GDBusConnection *connection_, const gchar *sender,
 		return;
 	}
 	if (g_strcmp0 (method_name, "InstallFiles") == 0) {
-		pk_transaction_install_files (transaction, parameters, invocation);
+		pk_transaction_install_files (transaction, parameters, invocation, FALSE);
+		return;
+	}
+	if (g_strcmp0 (method_name, "InstallFilesWithChecksums") == 0) {
+		pk_transaction_install_files (transaction, parameters, invocation, TRUE);
 		return;
 	}
 	if (g_strcmp0 (method_name, "InstallPackages") == 0) {
@@ -5286,6 +5322,7 @@ pk_transaction_finalize (GObject *object)
 	g_free (transaction->priv->cached_package_id);
 	g_free (transaction->priv->cached_key_id);
 	g_strfreev (transaction->priv->cached_package_ids);
+	g_strfreev (transaction->priv->cached_full_path_checksums);
 	g_free (transaction->priv->cached_transaction_id);
 	g_free (transaction->priv->cached_directory);
 	g_strfreev (transaction->priv->cached_values);

@@ -110,6 +110,11 @@ typedef struct {
 							 PkBackendJob	*job,
 							 PkBitfield	 transaction_flags,
 							 gchar		**full_paths);
+	void		(*install_files_with_checksums)	(PkBackend	*backend,
+							 PkBackendJob	*job,
+							 PkBitfield	 transaction_flags,
+							 gchar		**full_paths,
+							 gchar		**checksums);
 	void		(*install_packages)		(PkBackend	*backend,
 							 PkBackendJob	*job,
 							 PkBitfield	 transaction_flags,
@@ -410,6 +415,13 @@ pk_backend_is_implemented (PkBackend *backend, PkRoleEnum role)
 	return pk_bitfield_contain (roles, role);
 }
 
+gboolean
+pk_backend_supports_checked_install (PkBackend *backend)
+{
+	g_return_val_if_fail (PK_IS_BACKEND (backend), FALSE);
+	return backend->priv->desc->install_files_with_checksums != NULL;
+}
+
 static gchar *
 pk_backend_build_library_path (PkBackend *backend, const gchar *name)
 {
@@ -531,6 +543,7 @@ pk_backend_load (PkBackend *backend, GError **error)
 		g_module_symbol (handle, "pk_backend_get_updates", (gpointer *)&desc->get_updates);
 		g_module_symbol (handle, "pk_backend_initialize", (gpointer *)&desc->initialize);
 		g_module_symbol (handle, "pk_backend_install_files", (gpointer *)&desc->install_files);
+		g_module_symbol (handle, "pk_backend_install_files_with_checksums", (gpointer *)&desc->install_files_with_checksums);
 		g_module_symbol (handle, "pk_backend_install_packages", (gpointer *)&desc->install_packages);
 		g_module_symbol (handle, "pk_backend_install_signature", (gpointer *)&desc->install_signature);
 		g_module_symbol (handle, "pk_backend_refresh_cache", (gpointer *)&desc->refresh_cache);
@@ -1399,6 +1412,25 @@ pk_backend_install_files (PkBackend *backend,
 							   transaction_flags,
 							   full_paths));
 	backend->priv->desc->install_files (backend, job, transaction_flags, full_paths);
+}
+
+void
+pk_backend_install_files_with_checksums (PkBackend *backend,
+					 PkBackendJob *job,
+					 PkBitfield transaction_flags,
+					 gchar **full_paths,
+					 gchar **checksums)
+{
+	g_return_if_fail (PK_IS_BACKEND (backend));
+	g_return_if_fail (backend->priv->desc->install_files_with_checksums != NULL);
+	g_return_if_fail (pk_is_thread_default ());
+	g_assert (pk_backend_job_get_vfunc_enabled (job, PK_BACKEND_SIGNAL_FINISHED));
+	pk_backend_job_set_role (job, PK_ROLE_ENUM_INSTALL_FILES);
+	pk_backend_job_set_transaction_flags (job, transaction_flags);
+	pk_backend_job_set_parameters (job, g_variant_new ("(t^as^as)",
+							   transaction_flags, full_paths, checksums));
+	backend->priv->desc->install_files_with_checksums (backend, job,
+								 transaction_flags, full_paths, checksums);
 }
 
 void
